@@ -28,7 +28,7 @@ about delegating work to AI.
 (e.q retrying for TodoListViewModel was based on int - from my perspective not necessarily)
 - **How I verified:** unit tests generated with another agent, manual testing of the app. 
 - **Takeaway:** quality of prompt is crucial. 
-- 
+
 ## 2026-11-10 — Stage 1: sync-ready data model + migration
 - **Task:** add UUID ids, timestamps, soft delete, migration v1→v2 (spec 01).
 - **What the AI did:** implemented it with 69 green tests (45 before); flagged in its plan a
@@ -39,4 +39,11 @@ about delegating work to AI.
   "keep the same assertions" instruction conflicted with removing it, and reported it as a deviation.
 - **How I verified:** plan review before coding, test report, manual migration on my real v1 database.
 - **Takeaway:** a written spec + CLAUDE.md rules made the agent surface conflicts instead of
-  guessing. Runtime-only wiring (DI params) is a blind spot for the compiler, so guard it with a test.
+  guessing. Runtime-only wiring (DI params) is a blind spot for the compiler, so guard it with a test.- 
+
+## 2026-11-10 — Stage 1b: Koin & Koinst tests
+- **Task:** add tests for Koin (way of building components), Koinst (verifies correct division between layers)
+- **What the AI did:** ArchitectureTest, KoinGraphTest
+- **Surprise:** I didn't know there is a possibility to test these cases
+- **How I verified:** Read tests 
+- **Takeaway:** knowledge about Koinst 

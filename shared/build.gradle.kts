@@ -79,6 +79,10 @@ kotlin {
         jvmTest.dependencies {
             // MigrationTestHelper, used to replay the exported schemas in shared/schemas.
             implementation(libs.androidx.room.testing)
+            // Guard tests: Koin graph resolution and architecture rules (both JVM-only tooling).
+            implementation(project.dependencies.platform(libs.koin.bom))
+            implementation(libs.koin.test)
+            implementation(libs.konsist)
         }
         getByName("androidDeviceTest").dependencies {
             implementation(libs.androidx.testRunner)
