@@ -51,7 +51,7 @@ class TodoListViewModel(private val repository: TodoRepository) : ViewModel() {
     /** `true` after a failed write; the UI shows a message and calls [onWriteErrorShown]. */
     val writeFailed: StateFlow<Boolean> = _writeFailed.asStateFlow()
 
-    fun onToggleDone(id: Long, isDone: Boolean) {
+    fun onToggleDone(id: String, isDone: Boolean) {
         viewModelScope.launch {
             // The database is the single source of truth: the checkbox updates when the Flow re-emits.
             runSuspendCatching { repository.setDone(id, isDone) }

@@ -16,8 +16,8 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class TodoListViewModelTest : MainDispatcherTest() {
 
-    private val first = Todo(1, "First", "", isDone = false)
-    private val second = Todo(2, "Second", "desc", isDone = true)
+    private val first = Todo("1", "First", "", isDone = false)
+    private val second = Todo("2", "Second", "desc", isDone = true)
 
     /** `uiState` is `WhileSubscribed`, so something has to collect it. */
     private fun TestScope.keepCollecting(viewModel: TodoListViewModel) {
@@ -54,10 +54,10 @@ class TodoListViewModelTest : MainDispatcherTest() {
         keepCollecting(viewModel)
         assertEquals(TodoListUiState.Empty, viewModel.uiState.value)
 
-        repository.createTodo("New", "")
+        val id = repository.createTodo("New", "")
         assertTrue(viewModel.uiState.value is TodoListUiState.Content)
 
-        repository.deleteTodo(1)
+        repository.deleteTodo(id)
         assertEquals(TodoListUiState.Empty, viewModel.uiState.value)
     }
 
@@ -67,9 +67,9 @@ class TodoListViewModelTest : MainDispatcherTest() {
         val viewModel = TodoListViewModel(repository)
         keepCollecting(viewModel)
 
-        viewModel.onToggleDone(id = 1, isDone = true)
+        viewModel.onToggleDone(id = "1", isDone = true)
 
-        assertEquals(listOf(1L to true), repository.doneChanges)
+        assertEquals(listOf("1" to true), repository.doneChanges)
         assertEquals(
             TodoListUiState.Content(listOf(first.copy(isDone = true))),
             viewModel.uiState.value,
@@ -96,7 +96,7 @@ class TodoListViewModelTest : MainDispatcherTest() {
         keepCollecting(viewModel)
         assertFalse(viewModel.writeFailed.value)
 
-        viewModel.onToggleDone(id = 1, isDone = true)
+        viewModel.onToggleDone(id = "1", isDone = true)
         assertTrue(viewModel.writeFailed.value)
 
         viewModel.onWriteErrorShown()

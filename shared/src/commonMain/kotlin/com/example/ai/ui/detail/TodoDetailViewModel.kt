@@ -39,7 +39,7 @@ data class TodoDetailUiState(
  * @param todoId id of the todo to edit, or `null` to create a new one.
  */
 class TodoDetailViewModel(
-    todoId: Long?,
+    todoId: String?,
     private val repository: TodoRepository,
 ) : ViewModel() {
 
@@ -58,7 +58,7 @@ class TodoDetailViewModel(
     private var lastSaved: Content? = null
 
     /** Id of the persisted row: [todoId] when editing, set after the first insert when creating. */
-    private var currentId: Long? = todoId
+    private var currentId: String? = todoId
 
     /** Serialises saves so a todo can never be inserted twice. */
     private val saveMutex = Mutex()
@@ -70,7 +70,7 @@ class TodoDetailViewModel(
         if (todoId != null) load(todoId)
     }
 
-    private fun load(id: Long) {
+    private fun load(id: String) {
         viewModelScope.launch {
             runSuspendCatching { repository.getTodo(id) }
                 .onSuccess { todo ->

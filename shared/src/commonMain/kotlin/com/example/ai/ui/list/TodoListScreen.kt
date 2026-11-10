@@ -55,7 +55,7 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun TodoListScreen(
     onAddClick: () -> Unit,
-    onTodoClick: (Long) -> Unit,
+    onTodoClick: (String) -> Unit,
     viewModel: TodoListViewModel = koinViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -86,8 +86,8 @@ private fun TodoListContent(
     state: TodoListUiState,
     snackbarHostState: SnackbarHostState,
     onAddClick: () -> Unit,
-    onTodoClick: (Long) -> Unit,
-    onToggleDone: (id: Long, isDone: Boolean) -> Unit,
+    onTodoClick: (String) -> Unit,
+    onToggleDone: (id: String, isDone: Boolean) -> Unit,
     onRetry: () -> Unit,
 ) {
     Scaffold(

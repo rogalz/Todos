@@ -13,12 +13,12 @@ import kotlin.test.assertTrue
 
 class TodoDetailViewModelTest : MainDispatcherTest() {
 
-    private val existing = Todo(id = 5, title = "Old title", description = "Old description", isDone = true)
+    private val existing = Todo(id = "5", title = "Old title", description = "Old description", isDone = true)
 
     private fun newTodoViewModel(repository: FakeTodoRepository) =
         TodoDetailViewModel(todoId = null, repository = repository)
 
-    private fun editViewModel(repository: FakeTodoRepository, id: Long = existing.id) =
+    private fun editViewModel(repository: FakeTodoRepository, id: String = existing.id) =
         TodoDetailViewModel(todoId = id, repository = repository)
 
     private fun TodoDetailViewModel.type(title: String? = null, description: String? = null) {
@@ -112,7 +112,7 @@ class TodoDetailViewModelTest : MainDispatcherTest() {
 
         viewModel.onScreenStopped()
 
-        assertEquals(listOf(FakeTodoRepository.Updated(5, "Edited in background", "Old description")), repository.updated)
+        assertEquals(listOf(FakeTodoRepository.Updated("5", "Edited in background", "Old description")), repository.updated)
         assertFalse(viewModel.uiState.value.closeRequested, "stopping must not close the screen")
     }
 
@@ -139,8 +139,8 @@ class TodoDetailViewModelTest : MainDispatcherTest() {
 
         assertEquals(
             listOf(
-                FakeTodoRepository.Updated(5, "First edit", "Old description"),
-                FakeTodoRepository.Updated(5, "Second edit", "Old description"),
+                FakeTodoRepository.Updated("5", "First edit", "Old description"),
+                FakeTodoRepository.Updated("5", "Second edit", "Old description"),
             ),
             repository.updated,
         )
@@ -189,7 +189,7 @@ class TodoDetailViewModelTest : MainDispatcherTest() {
 
         viewModel.onBackClick()
 
-        assertEquals(listOf(FakeTodoRepository.Updated(5, "New title", "New description")), repository.updated)
+        assertEquals(listOf(FakeTodoRepository.Updated("5", "New title", "New description")), repository.updated)
         assertTrue(repository.todos.value.single().isDone, "editing text must not change the checkbox")
         assertTrue(viewModel.uiState.value.closeRequested)
     }
@@ -202,7 +202,7 @@ class TodoDetailViewModelTest : MainDispatcherTest() {
 
         viewModel.onBackClick()
 
-        assertEquals(listOf(FakeTodoRepository.Updated(5, "Old title", "Edited description")), repository.updated)
+        assertEquals(listOf(FakeTodoRepository.Updated("5", "Old title", "Edited description")), repository.updated)
     }
 
     @Test
@@ -220,7 +220,7 @@ class TodoDetailViewModelTest : MainDispatcherTest() {
 
     @Test
     fun missingTodoClosesTheScreen() {
-        val viewModel = editViewModel(FakeTodoRepository(), id = 99)
+        val viewModel = editViewModel(FakeTodoRepository(), id = "99")
 
         assertTrue(viewModel.uiState.value.closeRequested)
     }
@@ -283,7 +283,7 @@ class TodoDetailViewModelTest : MainDispatcherTest() {
         viewModel.onScreenStopped() // e.g. the screen stopping while it is being popped
         viewModel.onBackClick()
 
-        assertEquals(listOf(5L), repository.deleted)
+        assertEquals(listOf("5"), repository.deleted)
         assertEquals(0, repository.updated.size, "a deleted row must not be updated or re-created")
         assertEquals(0, repository.created.size)
         assertTrue(repository.todos.value.isEmpty())
