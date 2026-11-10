@@ -39,11 +39,37 @@ about delegating work to AI.
   "keep the same assertions" instruction conflicted with removing it, and reported it as a deviation.
 - **How I verified:** plan review before coding, test report, manual migration on my real v1 database.
 - **Takeaway:** a written spec + CLAUDE.md rules made the agent surface conflicts instead of
-  guessing. Runtime-only wiring (DI params) is a blind spot for the compiler, so guard it with a test.- 
+  guessing. Runtime-only wiring (DI params) is a blind spot for the compiler, so guard it with a test.
 
-## 2026-11-10 — Stage 1b: Koin & Koinst tests
-- **Task:** add tests for Koin (way of building components), Koinst (verifies correct division between layers)
+## 2026-11-10 — Stage 1b: Koin & Konsist tests
+- **Task:** add tests for Koin (way of building components), Konsist (verifies correct division between layers)
 - **What the AI did:** ArchitectureTest, KoinGraphTest
 - **Surprise:** I didn't know there is a possibility to test these cases
 - **How I verified:** Read tests 
-- **Takeaway:** knowledge about Koinst 
+- **Takeaway:** knowledge about Konsist 
+
+## 2026-11-10 — Stage 2: local sync backend (Ktor + Docker)
+- **Task:** spec 02: an `api` module with DTOs shared by client and server, a Ktor server with
+  `GET /todos?since` (changes after a revision cursor) and an idempotent `PUT /todos/{id}`
+  with last-write-wins, in-memory storage, Docker.
+- **What the AI did:** wrote the tests before the code (33 server tests, 5 contract tests incl.
+  golden JSON), then mutation-checked them: 10 deliberate bugs, 10 caught. Verified the server
+  for real with curl, `java -jar` and Docker, including a container restart.
+- **Surprise:**
+  - It found a hole in **my** spec while planning: "reset when `since` > revision" stops working
+    as soon as the restarted server's counter passes the old cursor. Todos already `SYNCED` would
+    then live only on clients and never reach a new device. It proposed a boot-time counter;
+    I chose a server instance id (UUID per start, sent back by the client): it changes the
+    contract, but answers the real question explicitly: "is this still the same server?".
+  - It also corrected my client rule for a reset: not "replace the local view" (data loss) but
+    "mark local rows PENDING and re-push"; last-write-wins makes that safe.
+  - Its mutation run exposed one of its own tests as vacuous (an all-digit UUID can't test
+    case-insensitive parsing).
+- **Where I overruled it:** it made JSON parsing strict (unknown fields → 400). Locally safe,
+  globally wrong: an older server would reject a newer client. Switched to a tolerant reader
+  (`ignoreUnknownKeys`). In the plan I also caught two versions of kotlinx-serialization (1.8 vs 1.12).
+- **How I verified:** two rounds of plan review, `scripts/smoke.sh` against the Docker container,
+  read `TodoStore` (locking, revision counter, last-write-wins) line by line.
+- **Takeaway:** "plan before code" turns the agent into a reviewer of my spec, and a spec bug
+  costs minutes in a plan instead of hours in code. Edge cases and tests are its strength;
+  decisions with long-term consequences (API evolution, contract shape) stay mine.
