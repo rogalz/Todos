@@ -20,6 +20,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -46,7 +49,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ai.domain.Todo
-import com.example.ai.ui.components.AppIcons
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -93,7 +95,7 @@ private fun TodoListContent(
         // Always visible, in every state, so there is always a way to create a task.
         floatingActionButton = {
             FloatingActionButton(onClick = onAddClick) {
-                Icon(AppIcons.Add, contentDescription = stringResource(Res.string.list_add_task))
+                Icon(Icons.Default.Add, contentDescription = stringResource(Res.string.list_add_task))
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -106,7 +108,7 @@ private fun TodoListContent(
 
             TodoListUiState.Empty -> CenteredColumn(contentModifier) {
                 Icon(
-                    imageVector = AppIcons.CheckCircle,
+                    imageVector = Icons.Default.CheckCircle,
                     contentDescription = null,
                     modifier = Modifier.size(72.dp),
                     tint = MaterialTheme.colorScheme.primary,

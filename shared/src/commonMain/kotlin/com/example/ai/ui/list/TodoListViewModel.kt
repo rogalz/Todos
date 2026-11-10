@@ -6,6 +6,7 @@ import com.example.ai.domain.Todo
 import com.example.ai.domain.TodoRepository
 import com.example.ai.ui.util.runSuspendCatching
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -26,10 +28,15 @@ sealed interface TodoListUiState {
 
 class TodoListViewModel(private val repository: TodoRepository) : ViewModel() {
 
-    private val retryTrigger = MutableStateFlow(0)
+    // extraBufferCapacity lets onRetry() use tryEmit without suspending. Taps while a retry is
+    // already pending are dropped, which is fine: one pending retry already covers them.
+    private val retryRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val uiState: StateFlow<TodoListUiState> = retryTrigger
+    val uiState: StateFlow<TodoListUiState> = retryRequests
+        // A SharedFlow has no initial value, so seed it: this is the first load, and also the
+        // reload when WhileSubscribed restarts the upstream after the UI has been gone for a while.
+        .onStart { emit(Unit) }
         .flatMapLatest {
             repository.observeTodos()
                 .map<List<Todo>, TodoListUiState> { todos ->
@@ -53,7 +60,7 @@ class TodoListViewModel(private val repository: TodoRepository) : ViewModel() {
     }
 
     fun onRetry() {
-        retryTrigger.value++
+        retryRequests.tryEmit(Unit)
     }
 
     fun onWriteErrorShown() {

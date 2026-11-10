@@ -22,9 +22,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -52,7 +54,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
-import com.example.ai.ui.components.AppIcons
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -132,7 +133,6 @@ fun TodoDetailScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TodoDetailContent(
     state: TodoDetailUiState,
@@ -152,7 +152,7 @@ private fun TodoDetailContent(
                 navigationIcon = {
                     IconButton(onClick = viewModel::onBackClick) {
                         Icon(
-                            imageVector = AppIcons.ArrowBack,
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(Res.string.detail_back),
                         )
                     }
@@ -161,7 +161,7 @@ private fun TodoDetailContent(
                     if (state.canDelete) {
                         IconButton(onClick = viewModel::onDeleteClick) {
                             Icon(
-                                imageVector = AppIcons.Delete,
+                                imageVector = Icons.Default.Delete,
                                 contentDescription = stringResource(Res.string.detail_delete),
                             )
                         }
