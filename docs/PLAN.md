@@ -44,7 +44,7 @@ Status: ✅ gotowe · 🔄 w trakcie · ⏳ czeka
 | # | Etap | Status | Gotowe, gdy… |
 |---|---|---|---|
 | 0 | Fundament: git, `CLAUDE.md`, `AI_NOTES.md`, spec 01 | ✅ | — |
-| 1 | Model danych pod sync: UUID, timestampy, soft delete, migracja v1→v2 | 🔄 kod jest, niezacommitowany | `jvmTest` zielony, ręczny test migracji na desktopie OK, commit |
+| 1 | Model danych pod sync: UUID, timestampy, soft delete, migracja v1→v2 | 🔄 kod jest, niezacommitowany | `jvmTest` zielony, ręczny test migracji na desktopie OK, commit | ✅ | 
 | 1b | Zabezpieczenia: test grafu Koina + testy architektury (Konsist) | ⏳ | testy zielone, commit |
 | 2 | Backend Ktor: moduły `api` + `server`, `GET /todos?since`, `PUT /todos/{id}`, Docker | ⏳ spec gotowa | testy `testApplication` zielone, `docker compose up` działa, curl działa |
 | 3 | Klient + sync engine: Ktor Client, push PENDING → pull → Room; WorkManager na Androidzie, sync przy starcie na desktopie | ⏳ | test E2E: 2 klientów + serwer w teście; ręcznie desktop ↔ Android |

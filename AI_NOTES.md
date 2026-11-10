@@ -30,7 +30,7 @@ about delegating work to AI.
 - **Takeaway:** quality of prompt is crucial. 
 - 
 ## 2026-11-10 — Stage 1: sync-ready data model + migration
-- **Task:** UUID ids, timestamps, soft delete, migration v1→v2 (spec 01).
+- **Task:** add UUID ids, timestamps, soft delete, migration v1→v2 (spec 01).
 - **What the AI did:** implemented it with 69 green tests (45 before); flagged in its plan a
   destructive-migration fallback that contradicted CLAUDE.md, and a Koin param `getOrNull<Long>()`
   that would still compile but turn every edit into a duplicate.
