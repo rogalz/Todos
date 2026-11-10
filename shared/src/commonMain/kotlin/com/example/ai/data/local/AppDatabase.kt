@@ -27,4 +27,5 @@ internal const val DATABASE_FILE_NAME = "todo.db"
 fun getRoomDatabase(builder: RoomDatabase.Builder<AppDatabase>): AppDatabase =
     builder
         .setDriver(BundledSQLiteDriver())
+        .fallbackToDestructiveMigration(true)
         .build()
