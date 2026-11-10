@@ -37,6 +37,12 @@ spec in `docs/specs/`. Implement only what the current spec asks for.
 - Android host tests: `./gradlew :shared:testAndroidHostTest`
 - Android build: `./gradlew :androidApp:assembleDebug`
 - Desktop app: `./gradlew :desktopApp:run`
+- API contract tests (`api` module): `./gradlew :api:jvmTest`
+- Server tests: `./gradlew :server:test`
+- Server (local): `./gradlew :server:run` → `http://localhost:8080` (`PORT` env to change it)
+- Server in Docker: `./gradlew :server:buildFatJar && docker compose up --build` (the image only
+  copies the host-built jar)
+- Server smoke test against a running server: `scripts/smoke.sh [base-url]`
 
 ## How to work
 

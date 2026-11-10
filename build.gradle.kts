@@ -10,4 +10,5 @@ plugins {
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.androidxRoom) apply false
     alias(libs.plugins.kotlinSerialization) apply false
+    alias(libs.plugins.ktor) apply false
 }
