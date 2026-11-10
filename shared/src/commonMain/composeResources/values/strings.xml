@@ -1,0 +1,28 @@
+<resources>
+    <!-- List -->
+    <string name="list_title">To-do</string>
+    <string name="list_add_task">Add task</string>
+    <string name="list_empty_title">No tasks yet</string>
+    <string name="list_empty_message">Create your first task to get started.</string>
+    <string name="list_empty_action">Create your first task</string>
+    <string name="list_error_message">Couldn't load your tasks.</string>
+    <string name="list_error_retry">Retry</string>
+    <string name="list_write_error">Something went wrong. Please try again.</string>
+
+    <!-- Details -->
+    <string name="detail_title_new">New task</string>
+    <string name="detail_title_edit">Edit task</string>
+    <string name="detail_back">Back</string>
+    <string name="detail_delete">Delete task</string>
+    <string name="detail_field_title">Title</string>
+    <string name="detail_field_description">Description</string>
+    <string name="detail_save_error">Couldn't save your changes.</string>
+    <string name="detail_save_error_discard">Discard</string>
+    <string name="detail_delete_error">Couldn't delete the task.</string>
+
+    <!-- Delete dialog -->
+    <string name="delete_dialog_title">Delete task?</string>
+    <string name="delete_dialog_message">This can't be undone.</string>
+    <string name="delete_dialog_confirm">Delete</string>
+    <string name="delete_dialog_cancel">Cancel</string>
+</resources>
