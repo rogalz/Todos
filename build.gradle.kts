@@ -44,5 +44,14 @@ kover {
                 )
             }
         }
+
+        verify {
+            rule("Minimum line coverage") {
+                // The floor is the total at the time it was set, rounded DOWN to a multiple of 5
+                // (67.4 % -> 65), so normal churn does not trip it but a real drop does.
+                // It is raised by hand when coverage has grown; it is never lowered to make a build pass.
+                minBound(65)
+            }
+        }
     }
 }

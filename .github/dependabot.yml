@@ -1,0 +1,51 @@
+# Dependabot reads this file from the repository's DEFAULT branch (develop), and opens its PRs
+# against that branch too, so no `target-branch` is set. Its branches are same-repo pushes, so the
+# `push` trigger in ci.yml already runs CI on them.
+version: 2
+updates:
+  # Everything lives in the version catalog (gradle/libs.versions.toml) at the repository root.
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    # One PR per family of artifacts that are meant to move together.
+    groups:
+      kotlin:
+        # Kotlin, its compiler plugins and KSP are coupled: a KSP build targets one Kotlin version.
+        patterns:
+          - "org.jetbrains.kotlin*"
+          - "com.google.devtools.ksp*"
+      kotlinx:
+        patterns:
+          - "org.jetbrains.kotlinx:*"
+      compose:
+        # Compose Multiplatform libraries and its Gradle plugin (material3 is versioned separately
+        # but is still one of these artifacts).
+        patterns:
+          - "org.jetbrains.compose*"
+      androidx:
+        # Includes the JetBrains ports (org.jetbrains.androidx.*: lifecycle, navigation) and the
+        # Room Gradle plugin (androidx.room).
+        patterns:
+          - "androidx.*"
+          - "org.jetbrains.androidx.*"
+      ktor:
+        patterns:
+          - "io.ktor*"
+      koin:
+        patterns:
+          - "io.insert-koin*"
+      android-gradle-plugin:
+        patterns:
+          - "com.android*"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      github-actions:
+        patterns:
+          - "*"

@@ -42,7 +42,8 @@ spec in `docs/specs/`. Implement only what the current spec asks for.
 - Server (local): `./gradlew :server:run` → `http://localhost:8080` (`PORT` env to change it)
 - Server in Docker: `./gradlew :server:buildFatJar && docker compose up --build` (the image only
   copies the host-built jar)
-- Server smoke test against a running server: `scripts/smoke.sh [base-url]`
+- Server smoke test against a running server: `scripts/smoke.sh [base-url]` (checks status codes and
+  key body fragments, exits 1 on any failure; the delta checks assume a freshly started server)
 - Android emulator → local server: `scripts/android-reverse.sh` (`adb reverse tcp:8080 tcp:8080`).
   The Android app uses `http://localhost:8080` (not `10.0.2.2`), so run it once after the emulator
   has booted; it needs `adb` on PATH. The rule can vanish silently later (adb server restart,
@@ -60,12 +61,27 @@ spec in `docs/specs/`. Implement only what the current spec asks for.
 - `.github/workflows/ci.yml` runs on every push to any branch (no `pull_request` trigger: the push
   already covers PR branches). One run per ref; a newer push cancels the older run.
 - Job `test`: `./gradlew :api:jvmTest :server:test :shared:jvmTest :shared:testAndroidHostTest
-  koverXmlReport koverHtmlReport --continue`, then a tests + coverage table on the run page
-  (`scripts/ci-summary.py`). Artifacts: `coverage-report` (Kover HTML, always) and `test-reports`
-  (only when the run fails). Job `android-build` (parallel): `:androidApp:assembleDebug`.
-- No coverage threshold; the numbers are informational. Generated code (Room, Compose compiler and
-  resources, serialization, `@Preview`) is excluded in the root `build.gradle.kts`. Do not exclude
-  hand-written code to raise the number.
+  koverXmlReport koverHtmlReport --continue`, then `./gradlew koverVerify` (coverage floor, skipped
+  when the tests failed), then a tests + coverage table on the run page (`scripts/ci-summary.py`,
+  runs even when a gate fails). Artifacts: `coverage-report` (Kover HTML, always) and `test-reports`
+  (only when the run fails).
+- Job `android-build` (parallel): `:androidApp:assembleDebug`, uploads the debug APK as artifact
+  `app-debug-apk` (7 days).
+- Job `server-docker` (parallel): `:server:buildFatJar`, `docker build`, runs the container, waits
+  for `/health` (30 s), runs `scripts/smoke.sh` against it, always prints the container logs. To run
+  the same check locally: build the jar, `docker build -t todo-server:ci .`,
+  `docker run -d --name todo-server -p 8080:8080 todo-server:ci`, `scripts/smoke.sh`.
+- Dependabot (`.github/dependabot.yml`): weekly, `gradle` (the version catalog) and `github-actions`,
+  related artifacts grouped in one PR (Kotlin + KSP, Ktor, AndroidX, Compose, ...). Its PRs go to the
+  default branch (`develop`), where CI runs on them like on any push.
+- **Coverage floor:** `koverVerify` enforces a minimum *line* coverage on the aggregated report. The
+  value is `minBound(...)` in the root `build.gradle.kts` (currently 65: the total was 67.4 %, rounded
+  down to a multiple of 5). **Raising it is a manual decision**: when the total has grown, set it to
+  the new total rounded down to a multiple of 5. **Never lower it to make a build pass**; if coverage
+  dropped, add tests (or, if the drop is real and intended, stop and ask). Check it locally with
+  `./gradlew koverVerify`.
+- Generated code (Room, Compose compiler and resources, serialization, `@Preview`) is excluded in the
+  root `build.gradle.kts`. Do not exclude hand-written code to raise the number.
 - Only official `actions/*` and `gradle/actions/*`; ask before adding any other action.
 
 ## How to work
