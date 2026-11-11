@@ -22,6 +22,9 @@ MODULE_PACKAGES = {
 }
 MODULES = ["api", "server", "shared"]
 
+# Only a visual hint in the per-package table; it never fails anything (no coverage threshold yet).
+WARN_BELOW_LINE_PERCENT = 50.0
+
 
 def percent(covered: int, missed: int) -> str:
     total = covered + missed
@@ -76,15 +79,19 @@ def coverage_table() -> list[str]:
     except ET.ParseError as e:
         return heading + [f"Not available: cannot parse the Kover report ({e})."]
 
-    # counts[module][type] = [covered, missed]
+    # counts[module][type] and per_package[package][type] = [covered, missed]
     counts = {m: {"LINE": [0, 0], "BRANCH": [0, 0]} for m in MODULES}
+    per_package: dict[str, dict[str, list[int]]] = {}
     for package in report.findall("package"):
-        module = module_of(package.get("name", ""))
+        name = package.get("name", "")
+        module = module_of(name)
+        package_counts = per_package.setdefault(name, {"LINE": [0, 0], "BRANCH": [0, 0]})
         for counter in package.findall("counter"):
             kind = counter.get("type")
-            if kind in counts[module]:
-                counts[module][kind][0] += int(counter.get("covered", 0))
-                counts[module][kind][1] += int(counter.get("missed", 0))
+            if kind in package_counts:
+                for target in (counts[module][kind], package_counts[kind]):
+                    target[0] += int(counter.get("covered", 0))
+                    target[1] += int(counter.get("missed", 0))
 
     def cell(module_counts: dict, kind: str) -> str:
         covered, missed = module_counts[kind]
@@ -99,7 +106,35 @@ def coverage_table() -> list[str]:
         "",
         "_Server coverage includes execution from `shared`'s end-to-end tests (the real server runs in-process there)._",
     ]
-    return lines
+    return lines + package_table(per_package)
+
+
+def package_table(per_package: dict[str, dict[str, list[int]]]) -> list[str]:
+    def sort_key(item: tuple[str, dict[str, list[int]]]):
+        name, kinds = item
+        covered, missed = kinds["LINE"]
+        total = covered + missed
+        # Weakest first inside a module; a package without any line (n/a) goes last.
+        return MODULES.index(module_of(name)), covered / total if total else float("inf"), name
+
+    # Collapsed: the per-package detail is long, the module table above is what most people need.
+    # The blank lines around the table are required for GitHub to render Markdown inside <details>.
+    lines = [
+        "",
+        "<details><summary>Coverage per package</summary>",
+        "",
+        "| Package | Module | Line | Branch |",
+        "|---|---|--:|--:|",
+    ]
+    for name, kinds in sorted(per_package.items(), key=sort_key):
+        covered, missed = kinds["LINE"]
+        total = covered + missed
+        warn = "⚠️ " if total and covered / total * 100 < WARN_BELOW_LINE_PERCENT else ""
+        lines.append(
+            f"| {warn}{name.replace('/', '.')} | {module_of(name)} "
+            f"| {percent(covered, missed)} | {percent(*kinds['BRANCH'])} |"
+        )
+    return lines + ["", "</details>"]
 
 
 if __name__ == "__main__":
