@@ -10,6 +10,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Instant
 
 class TodoDetailViewModelTest : MainDispatcherTest() {
 
@@ -24,6 +25,33 @@ class TodoDetailViewModelTest : MainDispatcherTest() {
     private fun TodoDetailViewModel.type(title: String? = null, description: String? = null) {
         title?.let(titleState::setTextAndPlaceCursorAtEnd)
         description?.let(descriptionState::setTextAndPlaceCursorAtEnd)
+    }
+
+    // ---- "Edited ..." footer data --------------------------------------------------------------
+
+    @Test
+    fun editingExposesWhenTheTodoWasLastChanged() {
+        val changedAt = Instant.fromEpochMilliseconds(1_700_000_000_000)
+        val repository = FakeTodoRepository(listOf(existing.copy(updatedAt = changedAt)))
+
+        val viewModel = editViewModel(repository)
+
+        assertEquals(changedAt, viewModel.uiState.value.updatedAt)
+    }
+
+    @Test
+    fun updatedAtIsUnknownWhileLoading() {
+        val repository = FakeTodoRepository(listOf(existing))
+        repository.getTodoGate = CompletableDeferred()
+
+        val viewModel = editViewModel(repository)
+
+        assertNull(viewModel.uiState.value.updatedAt)
+    }
+
+    @Test
+    fun aNewTodoHasNoUpdatedAt() {
+        assertNull(newTodoViewModel(FakeTodoRepository()).uiState.value.updatedAt)
     }
 
     // ---- new todo -------------------------------------------------------------------------

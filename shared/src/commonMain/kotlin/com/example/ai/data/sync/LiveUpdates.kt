@@ -6,8 +6,23 @@ import com.example.ai.util.runSuspendCatching
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+
+/** Whether the live-updates stream is up; see [LiveUpdates.connection]. */
+enum class LiveConnection {
+    /** No connection has been attempted yet (app start, or the app just came back to the foreground). */
+    Unknown,
+
+    /** The current connection delivered its `hello`. */
+    Connected,
+
+    /** The last attempt failed or the stream ended, and the next `hello` has not arrived yet. */
+    Disconnected,
+}
 
 /**
  * Turns the server's "something changed" stream into syncs, so a change made on another device shows
@@ -38,6 +53,14 @@ import kotlinx.coroutines.launch
  * deliberately no minimum uptime: a server that accepts and then drops every connection is retried
  * every second, which is cheap enough not to deserve more logic.
  *
+ * ## Observable connection state
+ *
+ * [connection] only *reports* the above (the sync status chip reads it); it changes no behaviour. It is
+ * [LiveConnection.Unknown] until the first attempt has an outcome, so the app never claims to be offline
+ * merely because the stream has not had time to connect. A `hello` makes it [LiveConnection.Connected],
+ * any end of a connection [LiveConnection.Disconnected]. A change of the foreground state starts over at
+ * [LiveConnection.Unknown]: a connection we closed on purpose is not a failure.
+ *
  * @param readCursor the stored sync cursor.
  * @param requestSync [SyncScheduler.requestSync].
  * @param serverIsReachable [SyncScheduler.serverIsReachable].
@@ -56,12 +79,19 @@ class LiveUpdates(
 
     private var job: Job? = null
 
+    private val _connection = MutableStateFlow(LiveConnection.Unknown)
+
+    /** Whether the stream is up right now. Reporting only; see the class comment. */
+    val connection: StateFlow<LiveConnection> = _connection.asStateFlow()
+
     /** Starts following [AppForeground]. Calling it again does nothing. */
     fun start() {
         if (job != null) return
         job = scope.launch {
             // collectLatest: a change of the foreground state cancels the connection that is running.
             foreground.isForeground.collectLatest { inForeground ->
+                // Whatever the old connection was, closing it because the app left the screen is not a failure.
+                _connection.value = LiveConnection.Unknown
                 if (inForeground) stayConnected()
             }
         }
@@ -80,6 +110,7 @@ class LiveUpdates(
                         is ServerEvent.Hello -> {
                             failures = 0
                             connectionServerId = event.serverId
+                            _connection.value = LiveConnection.Connected
                             serverIsReachable()
                         }
                         is ServerEvent.Changed -> if (isNews(event.revision, connectionServerId)) requestSync()
@@ -87,6 +118,9 @@ class LiveUpdates(
                 }
             }
 
+            // Reached only when the stream ended by itself: a cancellation (background) throws out of
+            // runSuspendCatching above and never gets here.
+            _connection.value = LiveConnection.Disconnected
             failures += 1
             val wait = SyncScheduler.backoffMillis(failures, MAX_RECONNECT_BACKOFF_MILLIS)
             val why = outcome.exceptionOrNull()?.let { "failed: $it" } ?: "closed by the server"

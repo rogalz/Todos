@@ -1,13 +1,30 @@
 <resources>
     <!-- List -->
     <string name="list_title">To-do</string>
-    <string name="list_add_task">Add task</string>
+    <string name="list_add_task">New task</string>
     <string name="list_empty_title">No tasks yet</string>
-    <string name="list_empty_message">Create your first task to get started.</string>
-    <string name="list_empty_action">Create your first task</string>
+    <string name="list_empty_hint">Tap “New task” to add your first one.</string>
     <string name="list_error_message">Couldn't load your tasks.</string>
     <string name="list_error_retry">Retry</string>
     <string name="list_write_error">Something went wrong. Please try again.</string>
+
+    <!-- A task in the list -->
+    <string name="todo_not_synced">Not synced yet</string>
+    <string name="todo_state_done">Done</string>
+    <string name="todo_state_not_done">Not done</string>
+
+    <!-- Sync status chip. The visible text is short; the description is what a screen reader says. -->
+    <string name="sync_status_synced">Synced</string>
+    <string name="sync_status_syncing">Syncing…</string>
+    <string name="sync_status_offline">Offline</string>
+    <string name="sync_status_offline_waiting">Offline · %1$d waiting</string>
+    <string name="sync_status_synced_description">Synced. All changes have reached the server.</string>
+    <string name="sync_status_syncing_description">Syncing your changes.</string>
+    <string name="sync_status_offline_description">Offline. The server cannot be reached.</string>
+    <plurals name="sync_status_offline_waiting_description">
+        <item quantity="one">Offline. %1$d change is waiting to be uploaded.</item>
+        <item quantity="other">Offline. %1$d changes are waiting to be uploaded.</item>
+    </plurals>
 
     <!-- Details -->
     <string name="detail_title_new">New task</string>
@@ -19,6 +36,11 @@
     <string name="detail_save_error">Couldn't save your changes.</string>
     <string name="detail_save_error_discard">Discard</string>
     <string name="detail_delete_error">Couldn't delete the task.</string>
+    <string name="detail_edited_just_now">Edited just now</string>
+    <string name="detail_edited_minutes_ago">Edited %1$d min ago</string>
+    <string name="detail_edited_hours_ago">Edited %1$d h ago</string>
+    <string name="detail_edited_yesterday">Edited yesterday</string>
+    <string name="detail_edited_on">Edited %1$s</string>
 
     <!-- Delete dialog -->
     <string name="delete_dialog_title">Delete task?</string>

@@ -1,0 +1,17 @@
+<resources>
+    <!--
+        The WINDOW theme: what is on screen before Compose has drawn its first frame (and the system
+        splash on Android 12+, which falls back to the window background). Everything inside is Compose,
+        themed by AppTheme.
+
+        DayNight (framework, API 29+, so no AppCompat / Material dependency) switches with the system
+        setting, and the window background follows it through values/ and values-night/ colors.xml.
+        Without this the window was always light and flashed white before a dark-mode app appeared.
+        AndroidWindowThemeTest fails if this drifts from the Compose theme or goes back to a light-only parent.
+    -->
+    <style name="Theme.App" parent="android:Theme.DeviceDefault.DayNight">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">@color/window_background</item>
+    </style>
+</resources>

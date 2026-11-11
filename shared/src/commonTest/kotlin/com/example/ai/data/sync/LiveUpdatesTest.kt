@@ -326,6 +326,122 @@ class LiveUpdatesTest {
         assertEquals(5, f.reachableSignals.size)
     }
 
+    // ---- the observable connection state (read by the sync status chip) ------------------------
+
+    @Test
+    fun theConnectionIsUnknownUntilTheFirstAttemptHasAnOutcome() = runTest {
+        val f = fixture()
+        assertEquals(LiveConnection.Unknown, f.liveUpdates.connection.value, "before start")
+
+        f.liveUpdates.start()
+        runCurrent()
+
+        // Connected at the transport level, but no hello yet: still not a claim either way.
+        assertEquals(1, f.events.activeConnections)
+        assertEquals(LiveConnection.Unknown, f.liveUpdates.connection.value)
+    }
+
+    @Test
+    fun aHelloMakesItConnected() = runTest {
+        val f = fixture()
+        f.liveUpdates.start()
+        runCurrent()
+
+        f.current.send(ServerEvent.Hello("srv", 0))
+        runCurrent()
+
+        assertEquals(LiveConnection.Connected, f.liveUpdates.connection.value)
+    }
+
+    @Test
+    fun aChangedEventDoesNotMeanConnectedWithoutAHello() = runTest {
+        val f = fixture()
+        f.liveUpdates.start()
+        runCurrent()
+
+        f.current.send(ServerEvent.Changed(1))
+        runCurrent()
+
+        assertEquals(LiveConnection.Unknown, f.liveUpdates.connection.value, "only a hello counts as connected")
+    }
+
+    @Test
+    fun aFailingConnectionIsDisconnectedAndStaysSoUntilTheNextHello() = runTest {
+        val f = fixture()
+        f.liveUpdates.start()
+        runCurrent()
+        f.current.send(ServerEvent.Hello("srv", 0))
+        runCurrent()
+
+        f.current.fail()
+        runCurrent()
+        assertEquals(LiveConnection.Disconnected, f.liveUpdates.connection.value)
+
+        passTime(1_000) // the reconnect attempt is made, but a transport connection is not yet a hello
+        assertEquals(2, f.events.connections.size)
+        assertEquals(LiveConnection.Disconnected, f.liveUpdates.connection.value)
+
+        f.current.send(ServerEvent.Hello("srv", 0))
+        runCurrent()
+        assertEquals(LiveConnection.Connected, f.liveUpdates.connection.value)
+    }
+
+    @Test
+    fun aServerThatNeverAnswersIsDisconnectedFromTheFirstFailure() = runTest {
+        val f = fixture()
+        f.events.onConnect = { it.fail() }
+
+        f.liveUpdates.start()
+        runCurrent()
+
+        assertEquals(LiveConnection.Disconnected, f.liveUpdates.connection.value, "a failed first attempt is an outcome")
+    }
+
+    @Test
+    fun aStreamTheServerClosesIsDisconnectedToo() = runTest {
+        val f = fixture()
+        f.liveUpdates.start()
+        runCurrent()
+        f.current.send(ServerEvent.Hello("srv", 0))
+        runCurrent()
+
+        f.current.close()
+        runCurrent()
+
+        assertEquals(LiveConnection.Disconnected, f.liveUpdates.connection.value)
+    }
+
+    @Test
+    fun goingToTheBackgroundIsNotADisconnect() = runTest {
+        val f = fixture()
+        f.liveUpdates.start()
+        runCurrent()
+        f.current.send(ServerEvent.Hello("srv", 0))
+        runCurrent()
+
+        f.foreground.set(false)
+        runCurrent()
+
+        assertEquals(LiveConnection.Unknown, f.liveUpdates.connection.value, "we closed it on purpose")
+    }
+
+    @Test
+    fun comingBackStartsOverAsUnknownEvenAfterAFailure() = runTest {
+        val f = fixture()
+        f.events.onConnect = { it.fail() }
+        f.liveUpdates.start()
+        runCurrent()
+        assertEquals(LiveConnection.Disconnected, f.liveUpdates.connection.value)
+
+        f.foreground.set(false)
+        runCurrent()
+        f.events.onConnect = {}
+        f.foreground.set(true)
+        runCurrent()
+
+        assertEquals(LiveConnection.Unknown, f.liveUpdates.connection.value, "a fresh start, not the old failure")
+    }
+
     @Test
     fun theReconnectBackoffIsTheSharedBackoffFunctionWithATenSecondCap() {
         assertEquals(10_000L, LiveUpdates.MAX_RECONNECT_BACKOFF_MILLIS)

@@ -1,0 +1,4 @@
+<resources>
+    <!-- Must equal `background` of the dark scheme in shared/.../ui/theme/Color.kt (AndroidWindowThemeTest checks). -->
+    <color name="window_background">#1C1612</color>
+</resources>

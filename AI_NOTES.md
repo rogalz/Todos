@@ -144,3 +144,56 @@ about delegating work to AI.
 - **Takeaway:** the agent reasons about timeouts and races better than I would on a first
   pass, but only a long manual session on real devices shows how the environment decays over
   time. Thinking through the demo itself found a UX problem no test was written for.
+
+## 2026-11-11 — Stage 3b/3c: CI, coverage, Docker smoke test, AI code review
+- **Task:** GitHub Actions on every push: tests, Kover coverage with a per-module and
+  per-package summary on the run page, Android build with a downloadable APK, a job that builds
+  the Docker image and runs the smoke script against it, a coverage floor, Dependabot.
+  Then Claude code review on pull requests.
+- **What the AI did:** set it all up in well under an hour, rehearsed it locally first
+  (Docker, smoke pass + deliberate fail, `koverVerify` pass + fail), proved each job can go red
+  on a throwaway branch and deleted that branch afterwards.
+- **Surprise:**
+  - Its plan found that `scripts/smoke.sh` (written by the AI in stage 2) **always exited 0**:
+    the Docker job could never fail. It now checks status codes and response bodies, because a
+    status-only check would pass on a broken store.
+  - The first real CI run went red on a **flaky stage 4 test**. Locally it had always been
+    green because Gradle reused cached results. The agent stopped instead of touching the test
+    (CLAUDE.md rule). I decided the test was wrong, not the code: the event buffer drops the
+    oldest events by design (events are only signals, spec 04), so the test now asserts what we
+    actually promise: increasing revisions, newest one always delivered, every one below the
+    buffer size.
+- **Where it was blind:** it can't see GitHub's job summary or logs without auth, so the final
+  check of the rendered tables was mine. Claude code review: the app reacted with 👀 to
+  `@claude review`, but nothing ran: comment-triggered workflows run from the **default branch**,
+  and the workflow wasn't there yet.
+- **Takeaway:** CI paid for itself on the first run. A test suite that passes only thanks to a
+  build cache, and a smoke test that can't fail, are both invisible until something runs them
+  from scratch and asks "can this go red?".
+
+## 2026-11-11 — Stage 5: warm UI, sync visibility, UI tests
+- **Task:** spec 05: warm light/dark theme, cards, animated checkbox / strikethrough / list,
+  shared-element "open a todo" transition, a sync status chip (Synced / Syncing… / Offline · N
+  waiting), a "not synced" icon per todo, relative "Edited …" time, Compose UI tests.
+- **What the AI did:** 551 tests in total (334 in `shared:jvmTest`), 20 list UI tests and
+  12 whole-app flow tests with the real ViewModels and navigation. Coverage 67.4 % → **94.4 %**.
+  Mutation-checked the 300 ms "Syncing…" grace and the pending-icon rule.
+- **Surprise:**
+  - It **computed the WCAG contrast** of my palette instead of trusting it: my light "honey"
+    secondary was 2.88:1 (fails AA), and my "full" colour scheme defined only 10 of ~30 tokens,
+    so Material's default purple would have leaked into the FAB. Now 43 pairs per scheme are
+    tested, lowest 4.70:1.
+  - It **rendered the screens to images and looked at them** (that's how it checked hand-typed
+    icon paths), and captured mid-transition frames, which revealed a real bug no test would
+    catch: the shared title scaled up ~3× as a ghost across the screen.
+  - It found that a queued test dispatcher on `Main` deadlocks composing a `NavHost`, and
+    documented the workaround.
+- **Decisions that stayed mine:** predictive back plays the reverse animation only when the
+  gesture commits, because the screen saves before popping (data safety over a scrubbable
+  animation). Label consistency ("New task", my spec said "New todo"). Raising the coverage
+  floor to 90 %.
+- **How I verified:** plan review, report, manual check on Android + desktop in light and dark
+  mode (animations, chip with `docker compose pause` / `unpause`).
+- **Takeaway:** given a way to *see* its output (screenshots, frames), the agent verifies
+  visual work far better than through assertions alone. Design taste and trade-offs (what to
+  sacrifice, what words the user sees) are still decisions to make explicitly, not defaults.

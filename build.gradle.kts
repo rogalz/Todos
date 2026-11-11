@@ -48,9 +48,10 @@ kover {
         verify {
             rule("Minimum line coverage") {
                 // The floor is the total at the time it was set, rounded DOWN to a multiple of 5
-                // (67.4 % -> 65), so normal churn does not trip it but a real drop does.
-                // It is raised by hand when coverage has grown; it is never lowered to make a build pass.
-                minBound(65)
+                // (94.4 % -> 90), so normal churn does not trip it but a real drop does.
+                // It is raised by hand when coverage has grown (it was 65 until the stage 5 UI tests took
+                // the total from 67.4 % to 94.4 %); it is never lowered to make a build pass.
+                minBound(90)
             }
         }
     }
