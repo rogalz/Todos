@@ -40,6 +40,8 @@ androidx-espresso-core = { module = "androidx.test.espresso:espresso-core", vers
 androidx-testRunner = { module = "androidx.test:runner", version.ref = "androidx-testRunner" }
 androidx-appcompat = { module = "androidx.appcompat:appcompat", version.ref = "androidx-appcompat" }
 androidx-work-runtime = { module = "androidx.work:work-runtime", version.ref = "androidx-work" }
+# ProcessLifecycleOwner: the "is any activity visible" signal that gates the live-updates stream.
+androidx-lifecycle-process = { module = "androidx.lifecycle:lifecycle-process", version.ref = "androidx-lifecycle" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
 compose-uiTooling = { module = "org.jetbrains.compose.ui:ui-tooling", version.ref = "composeMultiplatform" }
 androidx-lifecycle-viewmodelCompose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidx-lifecycle" }
@@ -75,6 +77,7 @@ ktor-serverCore = { module = "io.ktor:ktor-server-core" }
 ktor-serverNetty = { module = "io.ktor:ktor-server-netty" }
 ktor-serverContentNegotiation = { module = "io.ktor:ktor-server-content-negotiation" }
 ktor-serverCallLogging = { module = "io.ktor:ktor-server-call-logging" }
+ktor-serverSse = { module = "io.ktor:ktor-server-sse" }
 ktor-serializationKotlinxJson = { module = "io.ktor:ktor-serialization-kotlinx-json" }
 ktor-serverTestHost = { module = "io.ktor:ktor-server-test-host" }
 ktor-clientCore = { module = "io.ktor:ktor-client-core" }

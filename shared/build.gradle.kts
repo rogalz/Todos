@@ -54,6 +54,8 @@ kotlin {
             implementation(libs.ktor.clientOkhttp)
             // Android-only fallback: upload offline changes when the network returns, even in the background.
             implementation(libs.androidx.work.runtime)
+            // Foreground signal for the live-updates stream (ProcessLifecycleOwner).
+            implementation(libs.androidx.lifecycle.process)
         }
         jvmMain.dependencies {
             implementation(libs.ktor.clientOkhttp)

@@ -71,5 +71,24 @@ class ApiContractTest {
         assertEquals("since", ApiRoutes.PARAM_SINCE)
         assertEquals("serverId", ApiRoutes.PARAM_SERVER_ID)
         assertEquals("/todos/abc", ApiRoutes.todoPath("abc"))
+        assertEquals("/events", ApiRoutes.EVENTS)
+        assertEquals("hello", ApiRoutes.EVENT_HELLO)
+        assertEquals("changed", ApiRoutes.EVENT_CHANGED)
+    }
+
+    // The `data:` of a `hello` event. The `changed` event has no JSON at all (its data is the bare
+    // revision), so there is nothing to pin for it beyond the event name above.
+    @Test
+    fun helloEventWireFormatIsPinned() {
+        val hello = ServerEvent.Hello(serverId = "srv", revision = 7)
+
+        assertEquals("""{"serverId":"srv","revision":7}""", json.encodeToString(hello))
+    }
+
+    @Test
+    fun helloEventRoundTripKeepsEveryField() {
+        for (hello in listOf(ServerEvent.Hello("s-1", 0), ServerEvent.Hello("s-2", Long.MAX_VALUE))) {
+            assertEquals(hello, json.decodeFromString<ServerEvent.Hello>(json.encodeToString(hello)))
+        }
     }
 }

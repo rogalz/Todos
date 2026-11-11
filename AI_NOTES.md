@@ -113,3 +113,34 @@ about delegating work to AI.
 - **Takeaway:** the agent is excellent at concurrency edge cases on paper and at proving its
   tests bite. It can't know my environment: the manual check in the spec found the one problem
   no test could. "Green tests" ≠ "works on the device".
+
+## 2026-11-11 — Stage 4: live updates (SSE)
+- **Task:** spec 04: the server signals "something changed" over SSE, the client reacts by
+  running the existing sync. Events carry no data, so a missed event loses nothing.
+  The stream runs only while the app is in the foreground.
+- **What the AI did:** 406 green tests in total; mutation-checked the key rules (no-op writes
+  emit nothing, socket timeout, backoff reset, `serverId` comparison). Ran a throwaway probe
+  on the iOS simulator (Darwin engine, real Netty server) and deleted it afterwards.
+- **Surprise:**
+  - The plan found a spec bug: `changed` carries only a revision, so after a server restart a
+    new small revision would have been compared against the old cursor and skipped. Fixed by
+    remembering the `serverId` from the connection's `hello`.
+  - It found that OkHttp's default read timeout (10 s) is shorter than our heartbeat (15 s):
+    the stream would have been cut and re-opened forever. `testApplication` can't show this, so
+    it wrote a tiny raw-socket SSE server to test the real OkHttp engine.
+  - It caught its own wrong claim ("a burst gives exactly one sync") and fixed the spec and tests.
+  - A `java.io.IOException` in common test code passed on JVM and Android; only the iOS compile
+    caught it. Compiling every target matters even when you only run JVM tests.
+- **Where I changed its plan:** it wanted to leave "`hello` cuts the sync backoff" as a
+  follow-up. Thinking through my own demo (offline → back online) showed up to a minute of
+  waiting, so I asked for it now, plus a 10 s cap for SSE reconnects.
+- **Where it was blind:** after a few idle minutes nothing synced on Android and restarting the
+  app didn't help. The `adb reverse` rule from stage 3 had silently disappeared. The fix
+  (`scripts/android-reverse.sh --watch`, re-applies the rule) is environment glue no
+  automated test would have asked for.
+- **How I verified:** `curl -N /events` (hello, heartbeats, changed), desktop + emulator side
+  by side: live create / edit / tick / delete both ways, 2 min idle, Android in background,
+  `docker compose pause`/`unpause`, `docker compose restart`, removing the tunnel under `--watch`.
+- **Takeaway:** the agent reasons about timeouts and races better than I would on a first
+  pass, but only a long manual session on real devices shows how the environment decays over
+  time. Thinking through the demo itself found a UX problem no test was written for.

@@ -28,6 +28,7 @@ dependencies {
     implementation(libs.ktor.serverNetty)
     implementation(libs.ktor.serverContentNegotiation)
     implementation(libs.ktor.serverCallLogging)
+    implementation(libs.ktor.serverSse)
     implementation(libs.ktor.serializationKotlinxJson)
     // Declared explicitly so Gradle resolves the catalog version and not the older one Ktor asks for.
     implementation(libs.kotlinx.serializationJson)
