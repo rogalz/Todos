@@ -73,3 +73,43 @@ about delegating work to AI.
 - **Takeaway:** "plan before code" turns the agent into a reviewer of my spec, and a spec bug
   costs minutes in a plan instead of hours in code. Edge cases and tests are its strength;
   decisions with long-term consequences (API evolution, contract shape) stay mine.
+
+## 2026-11-10 — Stage 3: client sync engine
+- **Task:** spec 03: Ktor client, sync state in Room (v3), `SyncEngine` (push pending → pull
+  changes → re-push after a server restart), `SyncScheduler` triggered by Room's pending count,
+  WorkManager fallback on Android, end-to-end tests with two clients and a real in-process server.
+- **What the AI did:** in ~35 minutes: 195 green tests in `shared` (74 before), each critical
+  mechanism mutation-checked (transaction, lock, 4xx skip, debounce, re-run while pending,
+  `markAllPending` on reset, tie rule). It also ran a one-off test over real sockets (OkHttp →
+  Netty), then removed it.
+- **Surprise:** the plan found eight gaps in my spec, three of them real data bugs:
+  - a tie on `updatedAt` would leave client and server different forever;
+  - reading, comparing and writing outside one transaction lets an older server version
+    overwrite a user edit;
+  - a single row rejected with 400 would block every row after it, and the pull.
+
+  It also suggested timeouts, and noticed that an "edit during push" doesn't change the pending
+  count, so nothing would trigger the next sync. My fix for the tie (the server arbitrates on
+  the push response) it implemented slightly better than I wrote it: it compares against the
+  current local row, not the sent one, so an edit made during the push still survives.
+- **Where it was blind:** all automated tests were green, yet on the emulator every sync
+  timed out: on my machine the emulator can't reach the host via `10.0.2.2`. In-process tests
+  can't see the real network. Fixed with `adb reverse` + `localhost` (`scripts/android-reverse.sh`).
+  Side effect nobody (me included) predicted: `adb reverse` tunnels through adb, not the
+  emulator's network, so airplane mode no longer makes the app offline. Offline is now
+  simulated by removing the tunnel (`adb reverse --remove tcp:8080`). A workaround for one
+  problem silently changed how another thing has to be tested.
+  And removing the tunnel wasn't enough: an edit still reached the server, because OkHttp
+  reused a keep-alive connection opened before the tunnel was removed. Removing a route stops
+  new connections, not open ones; a reliable "offline" also needs the app process killed.
+- **My own mistake:** `docker compose restart` "didn't restart" the server; a `:server:run` from
+  an earlier debugging step was still holding port 8080. The constant `serverId` gave it away:
+  every server start generates a new one.
+- **How I verified:** plan review, test report, manual checks: desktop and Android sync,
+  offline edits, and a server restart where the empty server was rebuilt from the clients
+  (same active / deleted counts, new `serverId`). Read `SyncStore` and `SyncEngine` line by line.
+  Offline conflict on 11.11: deleted a todo on desktop, then edited it on the offline Android;
+  after reconnecting the edit won everywhere (resurrection), as last-write-wins defines.
+- **Takeaway:** the agent is excellent at concurrency edge cases on paper and at proving its
+  tests bite. It can't know my environment: the manual check in the spec found the one problem
+  no test could. "Green tests" ≠ "works on the device".

@@ -45,9 +45,9 @@ Status: ✅ gotowe · 🔄 w trakcie · ⏳ czeka
 |---|---|---|---|
 | 0 | Fundament: git, `CLAUDE.md`, `AI_NOTES.md`, spec 01 | ✅ | — |
 | 1 | Model danych pod sync: UUID, timestampy, soft delete, migracja v1→v2 | 🔄 kod jest, niezacommitowany | `jvmTest` zielony, ręczny test migracji na desktopie OK, commit | ✅ | 
-| 1b | Zabezpieczenia: test grafu Koina + testy architektury (Konsist) | ⏳ | testy zielone, commit |
-| 2 | Backend Ktor: moduły `api` + `server`, `GET /todos?since`, `PUT /todos/{id}`, Docker | ⏳ spec gotowa | testy `testApplication` zielone, `docker compose up` działa, curl działa |
-| 3 | Klient + sync engine: Ktor Client, push PENDING → pull → Room; WorkManager na Androidzie, sync przy starcie na desktopie | ⏳ | test E2E: 2 klientów + serwer w teście; ręcznie desktop ↔ Android |
+| 1b | Zabezpieczenia: test grafu Koina + testy architektury (Konsist) | ⏳ | testy zielone, commit | ✅ |
+| 2 | Backend Ktor: moduły `api` + `server`, `GET /todos?since`, `PUT /todos/{id}`, Docker | ⏳ spec gotowa | testy `testApplication` zielone, `docker compose up` działa, curl działa | ✅ |
+| 3 | Klient + sync engine: Ktor Client, push PENDING → pull → Room; WorkManager na Androidzie, sync przy starcie na desktopie | ⏳ | test E2E: 2 klientów + serwer w teście; ręcznie desktop ↔ Android |  ✅ |
 | 4 | Live updates: SSE na serwerze, hot Flow na kliencie → pull | ⏳ | zmiana na A pojawia się na B bez klikania |
 | 5 | UI: wskaźnik syncu, animacje listy/checkboxa, **testy UI** | ⏳ | 2–3 testy UI zielone, ładnie wygląda |
 | 6 | Głos → LLM: SpeechRecognizer → `POST /parse` → Ollama → szkic do edycji | ⏳ **limit 3 h** | działa end-to-end; eval na ~10 zdaniach |

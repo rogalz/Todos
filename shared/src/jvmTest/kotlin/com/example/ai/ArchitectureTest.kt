@@ -45,8 +45,23 @@ class ArchitectureTest {
         }
     }
 
+    @Test
+    fun uiNeverTouchesTheNetworkOrTheDataLayer() {
+        // CLAUDE.md: Room is the single source of truth and the UI only observes it; network code
+        // never talks to the UI directly. Sync is invisible to the UI by construction.
+        val uiFiles = production.files.filter { file ->
+            file.packagee?.name.let { it == UI_PACKAGE || it?.startsWith("$UI_PACKAGE.") == true }
+        }
+        assertTrue(uiFiles.isNotEmpty(), "no files found in $UI_PACKAGE; is the rule still looking at the right place?")
+
+        uiFiles.assertFalse(additionalMessage = "ui must not import the network or the data package") {
+            it.importsFrom("io.ktor", DATA_PACKAGE)
+        }
+    }
+
     private companion object {
         const val BASE_PACKAGE = "com.example.ai"
+        const val UI_PACKAGE = "$BASE_PACKAGE.ui"
         const val DOMAIN_PACKAGE = "$BASE_PACKAGE.domain"
         const val DATA_PACKAGE = "$BASE_PACKAGE.data"
     }

@@ -3,9 +3,15 @@ package com.example.ai.di
 import androidx.room.RoomDatabase
 import com.example.ai.data.local.AppDatabase
 import com.example.ai.data.local.getDatabaseBuilder
+import com.example.ai.data.remote.ServerConfig
+import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.engine.darwin.Darwin
 import org.koin.core.module.Module
 import org.koin.dsl.module
 
 actual val platformModule: Module = module {
     single<RoomDatabase.Builder<AppDatabase>> { getDatabaseBuilder() }
+    single<HttpClientEngine> { Darwin.create() }
+    // The simulator shares the host's network, so localhost is the Mac (see NSAllowsLocalNetworking in Info.plist).
+    single { ServerConfig(baseUrl = "http://localhost:8080") }
 }
