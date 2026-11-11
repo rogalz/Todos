@@ -1,5 +1,6 @@
 package com.example.ai.di
 
+import com.example.ai.data.sync.LiveUpdates
 import com.example.ai.data.sync.SyncScheduler
 import org.koin.core.KoinApplication
 import org.koin.core.context.startKoin
@@ -19,4 +20,7 @@ internal fun startKoinApp(config: KoinAppDeclaration?) {
     // Syncing begins here, once per process (the guard above makes this idempotent), and on every
     // platform alike. It is not part of the graph itself so that tests can build the graph safely.
     koin.get<SyncScheduler>().start()
+    // Live updates ask the scheduler to sync, so they start after it (a request would only wait for a
+    // scheduler that is not running yet, but this order is the one that reads naturally).
+    koin.get<LiveUpdates>().start()
 }

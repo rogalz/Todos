@@ -45,7 +45,10 @@ spec in `docs/specs/`. Implement only what the current spec asks for.
 - Server smoke test against a running server: `scripts/smoke.sh [base-url]`
 - Android emulator → local server: `scripts/android-reverse.sh` (`adb reverse tcp:8080 tcp:8080`).
   The Android app uses `http://localhost:8080` (not `10.0.2.2`), so run it once after the emulator
-  has booted; it needs `adb` on PATH.
+  has booted; it needs `adb` on PATH. The rule can vanish silently later (adb server restart,
+  emulator reconnect: the app then fails with `Failed to connect to localhost:8080`); leave
+  `scripts/android-reverse.sh --watch` running in a terminal to have it restored every 5 s (a line is
+  printed each time). Without the flag the script applies the rule once and exits.
 - Coverage report: `./gradlew koverHtmlReport` → `build/reports/kover/html/index.html` (XML:
   `koverXmlReport` → `build/reports/kover/report.xml`). Kover aggregates `api`, `server` and `shared`
   at the root and runs the tests it needs (JVM and Android host; iOS cannot be measured).

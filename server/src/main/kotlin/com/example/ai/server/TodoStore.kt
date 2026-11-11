@@ -2,6 +2,10 @@ package com.example.ai.server
 
 import com.example.ai.api.ChangesResponse
 import com.example.ai.api.TodoDto
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.uuid.ExperimentalUuidApi
@@ -31,6 +35,25 @@ class TodoStore(
     private val todos = HashMap<String, Stored>()
     private var revision = 0L
 
+    // No replay: a client that connects later learns the current revision from its `hello`, not from
+    // a replayed event. The buffer drops the OLDEST event when a subscriber is too slow, so a stalled
+    // SSE connection can never make `tryEmit` fail or block a write, and nothing important is lost
+    // with it: an event only means "pull again", and the newest revision is always kept.
+    private val changeEvents = MutableSharedFlow<Long>(
+        extraBufferCapacity = EVENT_BUFFER_CAPACITY,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+
+    /**
+     * The new revision after every **applied** write (never for a write that changed nothing), for
+     * the `GET /events` stream. Hot and without replay: collect it *before* reading
+     * [currentRevision] so a write in between is buffered instead of lost (see `eventRoutes`).
+     */
+    val events: SharedFlow<Long> = changeEvents.asSharedFlow()
+
+    /** The revision a pull would return right now. */
+    suspend fun currentRevision(): Long = mutex.withLock { revision }
+
     /** The revision is stored with the todo: that is what `since` is compared against. */
     private class Stored(val dto: TodoDto, val revision: Long)
 
@@ -38,7 +61,7 @@ class TodoStore(
      * Last-write-wins upsert. Applies [incoming] only if nothing is stored for its id or it is
      * strictly newer by `updatedAt`; on a tie the stored version stays (see the spec). Returns the
      * winning version either way so the caller can reconcile. A write that changes nothing does not
-     * bump the revision, which is what makes retries harmless.
+     * bump the revision (which is what makes retries harmless) and emits no event.
      *
      * Tombstones are ordinary versions here: a newer live version replaces a tombstone and the
      * other way round.
@@ -50,6 +73,10 @@ class TodoStore(
         }
         revision += 1
         todos[incoming.id] = Stored(incoming, revision)
+        // Inside the lock, so events leave in revision order, and only after the write is visible to
+        // a pull: a client that reacts to the event never pulls a state older than the event.
+        // Cannot fail or suspend with DROP_OLDEST (see above).
+        changeEvents.tryEmit(revision)
         incoming
     }
 
@@ -71,5 +98,9 @@ class TodoStore(
             .sortedBy { it.revision }
             .map { it.dto }
         ChangesResponse(items = items, revision = revision, serverId = serverId, reset = restarted)
+    }
+
+    private companion object {
+        const val EVENT_BUFFER_CAPACITY = 64
     }
 }

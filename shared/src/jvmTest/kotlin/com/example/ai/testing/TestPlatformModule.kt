@@ -4,6 +4,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.ai.data.local.AppDatabase
 import com.example.ai.data.remote.ServerConfig
+import com.example.ai.data.sync.AlwaysForeground
+import com.example.ai.data.sync.AppForeground
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.okhttp.OkHttp
 import org.koin.dsl.module
@@ -17,4 +19,5 @@ fun fakePlatformModule() = module {
     single<RoomDatabase.Builder<AppDatabase>> { Room.inMemoryDatabaseBuilder<AppDatabase>() }
     single<HttpClientEngine> { OkHttp.create() }
     single { ServerConfig(baseUrl = "http://localhost:8080") }
+    single<AppForeground> { AlwaysForeground }
 }

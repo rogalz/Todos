@@ -179,7 +179,9 @@ two in-memory databases + two `SyncEngine`s using the test client):
 ## Manual check
 
 `docker compose up`, then (once, after the emulator has booted) `scripts/android-reverse.sh` so the
-emulator's `localhost:8080` reaches the server. Desktop app + Android emulator: create on one, appears on the other
+emulator's `localhost:8080` reaches the server. The rule can disappear silently (adb server restart,
+emulator reconnect → `Failed to connect to localhost:8080`); `scripts/android-reverse.sh --watch`
+keeps it in place for the whole session. Desktop app + Android emulator: create on one, appears on the other
 after the other syncs (restart it or make a local change to trigger a sync; live updates come
 in stage 4). Airplane mode on the emulator: edit, back online → change reaches the server.
 

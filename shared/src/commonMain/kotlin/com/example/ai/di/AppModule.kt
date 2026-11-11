@@ -6,10 +6,14 @@ import com.example.ai.data.local.SyncDao
 import com.example.ai.data.local.TodoDao
 import com.example.ai.data.local.getRoomDatabase
 import com.example.ai.data.remote.KtorTodoApi
+import com.example.ai.data.remote.KtorTodoEvents
 import com.example.ai.data.remote.ServerConfig
 import com.example.ai.data.remote.TodoApi
+import com.example.ai.data.remote.TodoEvents
 import com.example.ai.data.remote.configureTodoClient
+import com.example.ai.data.sync.AppForeground
 import com.example.ai.data.sync.BackgroundSyncFallback
+import com.example.ai.data.sync.LiveUpdates
 import com.example.ai.data.sync.SyncEngine
 import com.example.ai.data.sync.SyncScheduler
 import com.example.ai.data.sync.SyncStore
@@ -29,7 +33,7 @@ import kotlin.time.Clock
 
 /**
  * Provides what differs per platform: the `RoomDatabase.Builder<AppDatabase>`, the Ktor
- * `HttpClientEngine` and the [ServerConfig] (the server's address).
+ * `HttpClientEngine`, the [ServerConfig] (the server's address) and the [AppForeground] signal.
  */
 expect val platformModule: Module
 
@@ -60,6 +64,21 @@ val appModule = module {
             scope = get(AppScope),
             // Provided by Android only (WorkManager); desktop and iOS have none.
             fallback = getOrNull<BackgroundSyncFallback>(),
+        )
+    }
+
+    // ---- live updates (stage 4) ----
+    single<TodoEvents> { KtorTodoEvents(client = get(), baseUrl = get<ServerConfig>().baseUrl) }
+    // Like the scheduler: created here, started by `startKoinApp`. Resolving it must never open a connection.
+    single {
+        val scheduler = get<SyncScheduler>()
+        LiveUpdates(
+            events = get(),
+            foreground = get(),
+            readCursor = get<SyncStore>()::readCursor,
+            requestSync = scheduler::requestSync,
+            serverIsReachable = scheduler::serverIsReachable,
+            scope = get(AppScope),
         )
     }
 

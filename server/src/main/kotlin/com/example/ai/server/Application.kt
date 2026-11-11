@@ -6,13 +6,24 @@ import io.ktor.server.application.install
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.routing.routing
+import io.ktor.server.sse.SSE
 import kotlinx.serialization.json.Json
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
+
+/** The SSE heartbeat. Clients treat three missed ones (45 s) as a dead connection. */
+val DEFAULT_HEARTBEAT_PERIOD: Duration = 15.seconds
 
 /**
  * The whole server as an [Application] extension, so tests can start it with a store they control
  * (`testApplication { application { module(store) } }`) and `main` can start it with a fresh one.
+ *
+ * @param heartbeatPeriod a parameter so tests do not have to wait 15 s to see a heartbeat.
  */
-fun Application.module(store: TodoStore = TodoStore()) {
+fun Application.module(
+    store: TodoStore = TodoStore(),
+    heartbeatPeriod: Duration = DEFAULT_HEARTBEAT_PERIOD,
+) {
     // One log line per request: status, method, path and duration.
     install(CallLogging)
     install(ContentNegotiation) {
@@ -21,5 +32,9 @@ fun Application.module(store: TodoStore = TodoStore()) {
         // missing required fields are still 400); Ktor's own default is lenient, which we do not want.
         json(Json { ignoreUnknownKeys = true })
     }
-    routing { todoRoutes(store) }
+    install(SSE)
+    routing {
+        todoRoutes(store)
+        eventRoutes(store, heartbeatPeriod)
+    }
 }

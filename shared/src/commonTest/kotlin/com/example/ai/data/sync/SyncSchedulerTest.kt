@@ -349,13 +349,213 @@ class SyncSchedulerTest {
         assertEquals(listOf(0L), f.sync.callTimes)
     }
 
-    // ---- backoff arithmetic -------------------------------------------------------------------
+    // ---- requestSync (live updates: "something changed on the server") ------------------------
+
+    @Test
+    fun requestSyncRunsASyncAtOnceWithoutADebounce() = runTest {
+        val f = fixture()
+        f.scheduler.start()
+        passTime(1_000)
+
+        f.scheduler.requestSync()
+        runCurrent()
+
+        assertEquals(listOf(0L, 1_000L), f.sync.callTimes)
+    }
+
+    @Test
+    fun aBurstOfRequestsInTheSameInstantNeverBecomesAQueueOfSyncs() = runTest {
+        val f = fixture()
+        f.scheduler.start()
+        runCurrent()
+
+        repeat(10) { f.scheduler.requestSync() }
+        passTime(5_000)
+
+        // "At most one running and one queued": the first request is handed to the idle worker and the
+        // other nine collapse into one more token. Ten requests never mean ten syncs.
+        val syncsForTheBurst = f.sync.callTimes.size - 1 // minus the sync on start
+        assertTrue(syncsForTheBurst in 1..2, "ten requests caused $syncsForTheBurst syncs")
+    }
+
+    @Test
+    fun requestsDuringARunningSyncNeitherCancelItNorQueueUp() = runTest {
+        val f = fixture()
+        val release = CompletableDeferred<Unit>()
+        var cancelled = false
+        f.sync.onCall = { callNumber ->
+            if (callNumber == 1) {
+                try {
+                    release.await()
+                } catch (e: CancellationException) {
+                    cancelled = true
+                    throw e
+                }
+            }
+        }
+        f.scheduler.start()
+        runCurrent() // the first sync is running and suspended
+
+        repeat(10) {
+            f.scheduler.requestSync()
+            passTime(100)
+        }
+        assertFalse(cancelled, "a request must not cancel the running sync")
+        assertEquals(1, f.sync.callTimes.size, "and must not start a parallel one")
+
+        release.complete(Unit)
+        passTime(5_000)
+
+        assertEquals(2, f.sync.callTimes.size, "ten requests while one sync ran: one follow-up, not ten")
+    }
+
+    @Test
+    fun aRequestMadeBeforeStartIsNotLostAndMergesWithTheStartSync() = runTest {
+        val f = fixture()
+
+        f.scheduler.requestSync()
+        runCurrent()
+        assertEquals(emptyList(), f.sync.callTimes, "nothing runs before start()")
+
+        f.scheduler.start()
+        passTime(5_000)
+
+        assertEquals(listOf(0L), f.sync.callTimes, "one sync: the request and the start-up sync are the same token")
+    }
+
+    @Test
+    fun requestSyncWaitsOutAFailureBackoffLikeALocalWrite() = runTest {
+        val f = fixture()
+        f.sync.results += offline
+        f.scheduler.start()
+        runCurrent() // fails at t = 0, next attempt at t = 1000
+
+        passTime(100)
+        f.scheduler.requestSync()
+        passTime(500)
+        assertEquals(listOf(0L), f.sync.callTimes, "a plain request does not break a backoff")
+
+        passTime(1_000)
+        assertEquals(listOf(0L, 1_000L), f.sync.callTimes)
+    }
+
+    // ---- serverIsReachable (live updates: the stream just connected) ----------------------------
+
+    @Test
+    fun serverIsReachableWhileNothingIsFailingSyncsAtOnce() = runTest {
+        val f = fixture()
+        f.scheduler.start()
+        passTime(1_000)
+
+        f.scheduler.serverIsReachable()
+        runCurrent()
+
+        assertEquals(listOf(0L, 1_000L), f.sync.callTimes)
+    }
+
+    @Test
+    fun serverIsReachableCutsAThirtySecondBackoffShortAndTheNextFailureStartsAgainAtOneSecond() = runTest {
+        val f = fixture()
+        repeat(8) { f.sync.results += offline }
+        f.scheduler.start()
+        passTime(31_500) // failures at 0, 1, 3, 7, 15 and 31 s: the worker now waits 30 s, until t = 61 s
+        assertEquals(listOf(0L, 1_000L, 3_000L, 7_000L, 15_000L, 31_000L), f.sync.callTimes)
+
+        f.scheduler.serverIsReachable()
+        runCurrent()
+        assertEquals(31_500L, f.sync.callTimes[6], "the sync runs now, not at t = 61 s")
+
+        passTime(10_000)
+        // That sync failed too, so the backoff restarts from the bottom: 1 s, then 2 s. Without the
+        // reset the next gap would be 30 s.
+        assertEquals(listOf(31_500L, 32_500L, 34_500L), f.sync.callTimes.drop(6))
+    }
+
+    @Test
+    fun aSignalThatArrivesWhileASyncIsRunningAndThenFailsCutsItsBackoff() = runTest {
+        val f = fixture()
+        val release = CompletableDeferred<Unit>()
+        f.sync.results += offline
+        f.sync.onCall = { callNumber -> if (callNumber == 1) release.await() }
+        f.scheduler.start()
+        runCurrent() // sync 1 is running: the server was down when it started
+
+        f.scheduler.serverIsReachable() // ... and has come back since
+        release.complete(Unit) // sync 1 now fails
+        runCurrent()
+
+        assertEquals(listOf(0L, 0L), f.sync.callTimes, "the server answered after that sync began, so no 1 s wait")
+    }
+
+    @Test
+    fun aSignalFromBeforeTheSyncStartedDoesNotCutItsBackoff() = runTest {
+        val f = fixture()
+        f.sync.results += offline
+
+        f.scheduler.serverIsReachable() // long before the sync that is about to fail
+        f.scheduler.start()
+        passTime(5_000)
+
+        // The sync started after the signal and failed, so that failure is real and the backoff stands.
+        assertEquals(listOf(0L, 1_000L), f.sync.callTimes)
+    }
+
+    @Test
+    fun aSignalWhileIdleDoesNotShortenALaterBackoff() = runTest {
+        val f = fixture()
+        f.sync.results += listOf(SyncResult.Success, SyncResult.Success, offline)
+        f.scheduler.start()
+        passTime(1_000)
+        f.scheduler.serverIsReachable() // t = 1000: an ordinary sync, nothing is failing
+        passTime(4_000)
+
+        f.pending.value = 1 // a write at t = 5000, whose sync fails
+        passTime(5_000)
+
+        assertEquals(listOf(0L, 1_000L, 5_500L, 6_500L), f.sync.callTimes, "the old signal must not make the 1 s wait disappear")
+    }
+
+    @Test
+    fun aBurstOfReachableSignalsNeverBecomesAQueueOfSyncsEither() = runTest {
+        val f = fixture()
+        f.scheduler.start()
+        runCurrent()
+
+        repeat(5) { f.scheduler.serverIsReachable() }
+        passTime(5_000)
+
+        val syncsForTheBurst = f.sync.callTimes.size - 1
+        assertTrue(syncsForTheBurst in 1..2, "five signals caused $syncsForTheBurst syncs")
+    }
+
+    @Test
+    fun theFallbackIsStillAskedForAFailureThatTheSignalCutShort() = runTest {
+        var asked = 0
+        val f = fixture(fallback = { asked += 1 })
+        f.sync.results += listOf(offline, offline)
+        f.scheduler.start()
+        runCurrent()
+
+        f.scheduler.serverIsReachable()
+        runCurrent()
+
+        assertEquals(2, asked, "every failed sync tells WorkManager, whatever happens to the wait afterwards")
+    }
+
+        // ---- backoff arithmetic -------------------------------------------------------------------
 
     @Test
     fun backoffDoublesFromOneSecondAndStopsAtThirtySeconds() {
         val expected = listOf(1_000L, 2_000L, 4_000L, 8_000L, 16_000L, 30_000L, 30_000L)
 
         assertEquals(expected, (1..7).map { SyncScheduler.backoffMillis(it) })
+    }
+
+    @Test
+    fun theCapIsAParameterSoTheReconnectOfTheLiveStreamCanUseALowerOne() {
+        assertEquals(listOf(1_000L, 2_000L, 4_000L, 8_000L, 10_000L, 10_000L), (1..6).map { SyncScheduler.backoffMillis(it, maxMillis = 10_000) })
+        assertEquals(30_000L, SyncScheduler.backoffMillis(6), "the default is unchanged")
+        assertEquals(10_000L, SyncScheduler.backoffMillis(Int.MAX_VALUE, maxMillis = 10_000))
     }
 
     @Test
