@@ -1,5 +1,7 @@
 # To-do (Compose Multiplatform + Room KMP)
 
+[![CI](https://github.com/rogalz/Todos/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/rogalz/Todos/actions/workflows/ci.yml?query=branch%3Adevelop)
+
 A deliberately small to-do app: a list screen and a details screen, backed by a local Room database.
 Targets: Android, Desktop (JVM), iOS.
 

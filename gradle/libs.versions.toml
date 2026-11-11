@@ -28,6 +28,7 @@ kotlinx-serialization = "1.12.0"
 konsist = "0.18.1"
 ktor = "3.6.1"
 logback = "1.6.6"
+kover = "0.9.11"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -94,3 +95,4 @@ ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 androidxRoom = { id = "androidx.room", version.ref = "room" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ktor = { id = "io.ktor.plugin", version.ref = "ktor" }
+kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }

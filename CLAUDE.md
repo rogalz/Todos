@@ -46,6 +46,24 @@ spec in `docs/specs/`. Implement only what the current spec asks for.
 - Android emulator → local server: `scripts/android-reverse.sh` (`adb reverse tcp:8080 tcp:8080`).
   The Android app uses `http://localhost:8080` (not `10.0.2.2`), so run it once after the emulator
   has booted; it needs `adb` on PATH.
+- Coverage report: `./gradlew koverHtmlReport` → `build/reports/kover/html/index.html` (XML:
+  `koverXmlReport` → `build/reports/kover/report.xml`). Kover aggregates `api`, `server` and `shared`
+  at the root and runs the tests it needs (JVM and Android host; iOS cannot be measured).
+- Test + coverage summary table (what CI writes to the run page), after a test run with the XML
+  report: `python3 scripts/ci-summary.py`
+
+## CI
+
+- `.github/workflows/ci.yml` runs on every push to any branch (no `pull_request` trigger: the push
+  already covers PR branches). One run per ref; a newer push cancels the older run.
+- Job `test`: `./gradlew :api:jvmTest :server:test :shared:jvmTest :shared:testAndroidHostTest
+  koverXmlReport koverHtmlReport --continue`, then a tests + coverage table on the run page
+  (`scripts/ci-summary.py`). Artifacts: `coverage-report` (Kover HTML, always) and `test-reports`
+  (only when the run fails). Job `android-build` (parallel): `:androidApp:assembleDebug`.
+- No coverage threshold; the numbers are informational. Generated code (Room, Compose compiler and
+  resources, serialization, `@Preview`) is excluded in the root `build.gradle.kts`. Do not exclude
+  hand-written code to raise the number.
+- Only official `actions/*` and `gradle/actions/*`; ask before adding any other action.
 
 ## How to work
 
