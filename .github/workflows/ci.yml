@@ -41,6 +41,13 @@ jobs:
           koverXmlReport koverHtmlReport
           --continue
 
+      # A separate step so a red run says which gate failed: tests (step above) or coverage (this one).
+      # Skipped when the step above failed: no report exists then, and the test failure is the news.
+      # The test tasks are already up to date here, so this only evaluates the rule (the floor lives in
+      # the root build.gradle.kts).
+      - name: Verify coverage floor
+        run: ./gradlew koverVerify
+
       # Must run on red builds too: the test table is most useful then.
       - name: Write job summary
         if: always()
@@ -82,3 +89,70 @@ jobs:
           cache-read-only: false
 
       - run: ./gradlew :androidApp:assembleDebug
+
+      # Any branch's debug APK can be downloaded from its run page. It talks to http://localhost:8080,
+      # so it still needs `scripts/android-reverse.sh` (see README).
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: app-debug-apk
+          path: androidApp/build/outputs/apk/debug/*.apk
+          retention-days: 7
+          if-no-files-found: error
+
+  # Black-box check of the Docker image we demo: the real jar in the real image, over real HTTP.
+  # The unit tests run the server in-process and cannot catch a broken Dockerfile, a wrong port or a
+  # jar that does not start.
+  server-docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: false
+
+      # The Dockerfile only copies this jar (Gradle is not run inside the image, see the Dockerfile).
+      - name: Build fat jar
+        run: ./gradlew :server:buildFatJar
+
+      - name: Build image
+        run: docker build -t todo-server:ci .
+
+      - name: Start container
+        run: docker run -d --name todo-server -p 8080:8080 todo-server:ci
+
+      # The JVM needs a few seconds to start. Poll instead of sleeping a fixed time; the logs of a
+      # container that never answers are printed by the last step.
+      - name: Wait for /health
+        run: |
+          for i in $(seq 1 30); do
+            # --max-time: a connection that hangs must not eat the whole timeout; no error output per
+            # attempt, the first seconds are expected to fail.
+            if curl -fs --max-time 2 -o /dev/null http://localhost:8080/health; then
+              echo "healthy after ~${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::/health did not answer within 30 s"
+          exit 1
+
+      # Exits non-zero when any check fails, which turns this job red.
+      - name: Smoke test
+        run: sh scripts/smoke.sh http://localhost:8080
+
+      # Also when an earlier step failed: the logs are the first thing needed then.
+      - name: Container logs and cleanup
+        if: always()
+        run: |
+          echo "::group::docker logs"
+          docker logs todo-server || true
+          echo "::endgroup::"
+          docker rm -f todo-server || true

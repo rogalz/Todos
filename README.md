@@ -47,3 +47,14 @@ destructive-migration fallback: changing the schema needs a real `Migration`.
 - `./gradlew :shared:iosSimulatorArm64Test` ViewModels and mappers on iOS (needs Xcode; not run during development)
 
 DAO tests live in `jvmTest` because Room's in-memory builder is platform specific.
+
+## CI
+
+Every push runs three GitHub Actions jobs: `test` (all JVM and Android host tests, coverage report,
+coverage floor), `android-build` (debug APK) and `server-docker` (builds the server image, starts it
+and runs `scripts/smoke.sh` against it).
+
+**Debug APK of any branch:** open that branch's run under the Actions tab and download the
+`app-debug-apk` artifact (kept for 7 days). The app talks to `http://localhost:8080`, so on an
+emulator or a USB-connected phone it still needs `scripts/android-reverse.sh` (`adb reverse`) and a
+server running on your machine (`./gradlew :server:run`) before it can sync.
