@@ -249,14 +249,56 @@ class TodoStoreTest {
         assertEquals(received.distinct(), received)
     }
 
+    // The two tests below cover real parallelism against the events flow. What the store guarantees
+    // differs with the load (stage 4 spec: events are only signals, "something changed, pull again"):
+    //  - within the subscriber's buffer (64) every revision arrives, exactly once and in order;
+    //  - past it the OLDEST events are dropped, which is fine because a client only needs to learn
+    //    that something changed: what arrives stays in order without duplicates and ends on the
+    //    newest revision.
+    // Emitting inside the store's lock is what keeps the order under parallel writers: outside it two
+    // writers could swap their events.
+
     @Test
-    fun parallelWritesEmitEveryRevisionExactlyOnceAndInOrder() = runBlocking(Dispatchers.Default) {
-        val count = 300 // fewer than the buffer, so nothing may be dropped here
+    fun parallelWritesWithinTheBufferEmitEveryRevisionExactlyOnceAndInOrder() = runBlocking(Dispatchers.Default) {
+        // Fewer than the 64 events the store buffers per subscriber: even a collector that lags
+        // behind for the whole run cannot lose anything, so no timing can make this flaky.
+        val count = 50
         val received = store.eventsDuring(expected = count) {
             (1..count).map { n -> async { store.upsert(todo(id = "todo-$n", updatedAt = 100)) } }.awaitAll()
         }
 
-        // Emitting inside the lock is what makes this hold: outside it two writers could swap.
         assertEquals((1..count).map { it.toLong() }, received)
     }
+
+    @Test
+    fun parallelWritesPastTheBufferToASlowSubscriberDeliverIncreasingRevisionsEndingOnTheNewest() =
+        runBlocking(Dispatchers.Default) {
+            // Far more than the buffer holds (64). The collector stalls on its first event until every
+            // write is done, so overflow is certain (at most that event plus the buffer can arrive)
+            // instead of depending on thread timing.
+            val count = 300
+            val received = java.util.Collections.synchronizedList(mutableListOf<Long>())
+            val release = CompletableDeferred<Unit>()
+            val collector = launch(start = CoroutineStart.UNDISPATCHED) {
+                store.events.collect {
+                    received += it
+                    if (received.size == 1) release.await()
+                }
+            }
+
+            (1..count).map { n -> async { store.upsert(todo(id = "todo-$n", updatedAt = 100)) } }.awaitAll()
+            release.complete(Unit)
+            // The newest event is never dropped, so this ends; the timeout only turns a bug into a failure.
+            withTimeout(10_000) { while (received.lastOrNull() != count.toLong()) delay(1) }
+            collector.cancelAndJoin()
+
+            val delivered = received.toList()
+            assertTrue(delivered.size < count, "events must have been dropped, else this test proves nothing: $delivered")
+            assertTrue(
+                delivered.zipWithNext().all { (earlier, later) -> earlier < later },
+                "revisions must be strictly increasing (in order, no duplicates): $delivered",
+            )
+            assertEquals(store.currentRevision(), delivered.last(), "the last event is the final revision")
+            assertEquals(count.toLong(), store.currentRevision())
+        }
 }
