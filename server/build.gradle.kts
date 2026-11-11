@@ -30,6 +30,9 @@ dependencies {
     implementation(libs.ktor.serverCallLogging)
     implementation(libs.ktor.serverSse)
     implementation(libs.ktor.serializationKotlinxJson)
+    // Client for the local Ollama (`/parse`). OkHttp, like the app's own clients: one engine to know.
+    implementation(libs.ktor.clientCore)
+    implementation(libs.ktor.clientOkhttp)
     // Declared explicitly so Gradle resolves the catalog version and not the older one Ktor asks for.
     implementation(libs.kotlinx.serializationJson)
     implementation(libs.kotlinx.coroutinesCore)
@@ -37,5 +40,6 @@ dependencies {
 
     testImplementation(platform(libs.ktor.bom))
     testImplementation(libs.ktor.serverTestHost)
+    testImplementation(libs.ktor.clientMock)
     testImplementation(libs.kotlin.testJunit)
 }

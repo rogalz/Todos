@@ -17,6 +17,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.unit.dp
+import com.example.ai.data.NoMicPermissionNeeded
+import com.example.ai.data.NoSpeechToText
 import com.example.ai.domain.SyncOverview
 import com.example.ai.domain.Todo
 import com.example.ai.testing.FakeSyncStatusRepository
@@ -54,6 +56,7 @@ class TodoListScreenTest {
         // The ViewModels are created outside setContent: inside it they would be rebuilt on every recomposition.
         val listViewModel = TodoListViewModel(screen.todos)
         val syncViewModel = SyncStatusViewModel(screen.sync)
+        val voiceViewModel = VoiceInputViewModel(NoSpeechToText, NoMicPermissionNeeded)
         setContent {
             AppTheme {
                 TodoListScreen(
@@ -61,6 +64,7 @@ class TodoListScreenTest {
                     onTodoClick = { screen.opened += it },
                     viewModel = listViewModel,
                     syncStatusViewModel = syncViewModel,
+                    voiceInputViewModel = voiceViewModel,
                 )
             }
         }

@@ -8,6 +8,8 @@ import ai.shared.generated.resources.list_error_message
 import ai.shared.generated.resources.list_error_retry
 import ai.shared.generated.resources.list_title
 import ai.shared.generated.resources.list_write_error
+import ai.shared.generated.resources.voice_nothing_heard
+import ai.shared.generated.resources.voice_unavailable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -37,6 +39,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
@@ -54,17 +57,24 @@ import com.example.ai.ui.theme.Spacing
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
+/**
+ * @param onDictated called once with a sentence the user spoke or typed through the mic button; the
+ *   caller opens the new-task screen with it as a draft.
+ */
 @Composable
 fun TodoListScreen(
     onAddClick: () -> Unit,
     onTodoClick: (String) -> Unit,
+    onDictated: (String) -> Unit = {},
     viewModel: TodoListViewModel = koinViewModel(),
     syncStatusViewModel: SyncStatusViewModel = koinViewModel(),
+    voiceInputViewModel: VoiceInputViewModel = koinViewModel(),
     sharedElements: SharedElements = NoSharedElements,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val writeFailed by viewModel.writeFailed.collectAsStateWithLifecycle()
     val syncOverview by syncStatusViewModel.overview.collectAsStateWithLifecycle()
+    val voice by voiceInputViewModel.uiState.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val writeErrorMessage = stringResource(Res.string.list_write_error)
@@ -75,15 +85,45 @@ fun TodoListScreen(
         }
     }
 
+    val nothingHeard = stringResource(Res.string.voice_nothing_heard)
+    val speechUnavailable = stringResource(Res.string.voice_unavailable)
+    LaunchedEffect(voice.message) {
+        val message = when (voice.message) {
+            VoiceMessage.NothingHeard -> nothingHeard
+            VoiceMessage.SpeechUnavailable -> speechUnavailable
+            null -> return@LaunchedEffect
+        }
+        snackbarHostState.showSnackbar(message)
+        voiceInputViewModel.onMessageShown()
+    }
+
+    val currentOnDictated by rememberUpdatedState(onDictated)
+    LaunchedEffect(voice.dictatedText) {
+        voice.dictatedText?.let {
+            currentOnDictated(it)
+            voiceInputViewModel.onDictationHandled()
+        }
+    }
+
     TodoListContent(
         state = state,
         syncOverview = syncOverview,
+        micEnabled = voice.micEnabled,
         snackbarHostState = snackbarHostState,
         sharedElements = sharedElements,
         onAddClick = onAddClick,
+        onMicClick = voiceInputViewModel::onMicClick,
         onTodoClick = onTodoClick,
         onToggleDone = viewModel::onToggleDone,
         onRetry = viewModel::onRetry,
+    )
+    VoiceInputDialogs(
+        state = voice,
+        onStop = voiceInputViewModel::onStopClick,
+        onCancel = voiceInputViewModel::onCancelClick,
+        onTypedSubmit = voiceInputViewModel::onTypedTextSubmitted,
+        onTypedDismiss = voiceInputViewModel::onTypedDialogDismissed,
+        onPermissionDismiss = voiceInputViewModel::onPermissionExplanationDismissed,
     )
 }
 
@@ -92,9 +132,11 @@ fun TodoListScreen(
 private fun TodoListContent(
     state: TodoListUiState,
     syncOverview: SyncOverview,
+    micEnabled: Boolean,
     snackbarHostState: SnackbarHostState,
     sharedElements: SharedElements,
     onAddClick: () -> Unit,
+    onMicClick: () -> Unit,
     onTodoClick: (String) -> Unit,
     onToggleDone: (id: String, isDone: Boolean) -> Unit,
     onRetry: () -> Unit,
@@ -115,19 +157,23 @@ private fun TodoListContent(
         },
         // Always visible, in every state, so there is always a way to create a task.
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = onAddClick,
-                expanded = fabExpanded,
-                shape = CircleShape,
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
-                // The text is gone while collapsed, so the label lives here: one announcement either way.
-                modifier = Modifier
-                    .then(sharedElements.container(SharedKeys.container(null)))
-                    .semantics { contentDescription = addLabel },
-                icon = { Icon(Icons.Default.Add, contentDescription = null) },
-                text = { Text(addLabel) },
-            )
+            // The small mic sits above the main button, centred on its icon (the extended one is wider).
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(Spacing.S)) {
+                MicFab(enabled = micEnabled, onClick = onMicClick)
+                ExtendedFloatingActionButton(
+                    onClick = onAddClick,
+                    expanded = fabExpanded,
+                    shape = CircleShape,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    // The text is gone while collapsed, so the label lives here: one announcement either way.
+                    modifier = Modifier
+                        .then(sharedElements.container(SharedKeys.container(null)))
+                        .semantics { contentDescription = addLabel },
+                    icon = { Icon(Icons.Default.Add, contentDescription = null) },
+                    text = { Text(addLabel) },
+                )
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->

@@ -74,6 +74,31 @@ class ApiContractTest {
         assertEquals("/events", ApiRoutes.EVENTS)
         assertEquals("hello", ApiRoutes.EVENT_HELLO)
         assertEquals("changed", ApiRoutes.EVENT_CHANGED)
+        assertEquals("/parse", ApiRoutes.PARSE)
+        assertEquals(1000, ApiRoutes.PARSE_MAX_TEXT_LENGTH)
+        assertEquals(80, ApiRoutes.PARSE_MAX_TITLE_LENGTH)
+    }
+
+    @Test
+    fun parseRequestWireFormatIsPinned() {
+        assertEquals("""{"text":"buy milk"}""", json.encodeToString(ParseRequest("buy milk")))
+    }
+
+    @Test
+    fun parsedTodoWireFormatIsPinned() {
+        assertEquals(
+            """{"title":"Buy milk","description":"2 l"}""",
+            json.encodeToString(ParsedTodoDto("Buy milk", "2 l")),
+        )
+    }
+
+    @Test
+    fun parseDtosRoundTripKeepsEveryField() {
+        val request = ParseRequest("Zażółć gęślą jaźń 🚀\nline2 \"quoted\"")
+        val parsed = ParsedTodoDto(title = "Kup mleko 🥛", description = "")
+
+        assertEquals(request, json.decodeFromString<ParseRequest>(json.encodeToString(request)))
+        assertEquals(parsed, json.decodeFromString<ParsedTodoDto>(json.encodeToString(parsed)))
     }
 
     // The `data:` of a `hello` event. The `changed` event has no JSON at all (its data is the bare

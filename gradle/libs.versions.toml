@@ -90,6 +90,8 @@ ktor-clientContentNegotiation = { module = "io.ktor:ktor-client-content-negotiat
 # OkHttp serves both Android and the desktop JVM app (one engine instead of two); Darwin is iOS only.
 ktor-clientOkhttp = { module = "io.ktor:ktor-client-okhttp" }
 ktor-clientDarwin = { module = "io.ktor:ktor-client-darwin" }
+# Test-only: fakes the HTTP engine, so the Ollama client is tested without a real Ollama.
+ktor-clientMock = { module = "io.ktor:ktor-client-mock" }
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 
 [plugins]

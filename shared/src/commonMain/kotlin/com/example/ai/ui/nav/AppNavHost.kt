@@ -64,6 +64,9 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
                     onTodoClick = { id ->
                         entry.runIfResumed { navController.navigate(TodoDetailRoute(id)) }
                     },
+                    onDictated = { text ->
+                        entry.runIfResumed { navController.navigate(TodoDetailRoute(dictatedText = text)) }
+                    },
                     sharedElements = sharedElements,
                 )
             }
@@ -74,6 +77,7 @@ fun AppNavHost(navController: NavHostController = rememberNavController()) {
                 }
                 TodoDetailScreen(
                     todoId = route.todoId,
+                    dictatedText = route.dictatedText,
                     onClose = { navController.popBackStack() },
                     sharedElements = sharedElements,
                 )
