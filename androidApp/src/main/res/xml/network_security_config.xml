@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!--
+        Plain HTTP only for the local dev server (stage 3), never globally: every other host stays
+        HTTPS-only. On the emulator `localhost` reaches the server through `adb reverse`
+        (scripts/android-reverse.sh).
+    -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>

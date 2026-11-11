@@ -1,4 +1,4 @@
-package com.example.ai.ui.util
+package com.example.ai.util
 
 import kotlin.coroutines.cancellation.CancellationException
 

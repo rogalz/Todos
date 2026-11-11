@@ -43,6 +43,9 @@ spec in `docs/specs/`. Implement only what the current spec asks for.
 - Server in Docker: `./gradlew :server:buildFatJar && docker compose up --build` (the image only
   copies the host-built jar)
 - Server smoke test against a running server: `scripts/smoke.sh [base-url]`
+- Android emulator → local server: `scripts/android-reverse.sh` (`adb reverse tcp:8080 tcp:8080`).
+  The Android app uses `http://localhost:8080` (not `10.0.2.2`), so run it once after the emulator
+  has booted; it needs `adb` on PATH.
 
 ## How to work
 

@@ -1,17 +1,18 @@
 package com.example.ai.di
 
-import androidx.room.Room
-import androidx.room.RoomDatabase
 import com.example.ai.data.local.AppDatabase
 import com.example.ai.domain.TodoRepository
 import com.example.ai.testing.MainDispatcherTest
+import com.example.ai.testing.fakePlatformModule
 import com.example.ai.ui.detail.TodoDetailViewModel
+import io.ktor.client.HttpClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.koin.core.KoinApplication
 import org.koin.core.parameter.parametersOf
 import org.koin.dsl.koinApplication
-import org.koin.dsl.module
 import org.koin.test.check.checkModules
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -27,19 +28,17 @@ import kotlin.test.assertTrue
  */
 class KoinGraphTest : MainDispatcherTest() {
 
-    private val testPlatformModule = module {
-        single<RoomDatabase.Builder<AppDatabase>> { Room.inMemoryDatabaseBuilder<AppDatabase>() }
-    }
-
     // Isolated (non-global) Koin so no state leaks between tests. Definitions are lazy: nothing is
     // created, and no database opened, until a test resolves it.
-    private val app: KoinApplication = koinApplication { modules(testPlatformModule, appModule) }
+    private val app: KoinApplication = koinApplication { modules(fakePlatformModule(), appModule) }
     private val koin get() = app.koin
 
     @AfterTest
     fun tearDown() {
-        // Koin does not close the database for us.
+        // Koin does not close the database, the HTTP client or the app scope for us.
         koin.getOrNull<AppDatabase>()?.close()
+        koin.getOrNull<HttpClient>()?.close()
+        koin.getOrNull<CoroutineScope>(AppScope)?.cancel()
         app.close()
     }
 

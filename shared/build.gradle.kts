@@ -50,8 +50,19 @@ kotlin {
             implementation(libs.compose.uiTooling)
             implementation(project.dependencies.platform(libs.koin.bom))
             implementation(libs.koin.android)
+            implementation(libs.ktor.clientOkhttp)
+            // Android-only fallback: upload offline changes when the network returns, even in the background.
+            implementation(libs.androidx.work.runtime)
+        }
+        jvmMain.dependencies {
+            implementation(libs.ktor.clientOkhttp)
+        }
+        iosMain.dependencies {
+            implementation(libs.ktor.clientDarwin)
         }
         commonMain.dependencies {
+            // The client/server contract (DTOs, route constants), shared with `:server`.
+            implementation(project(":api"))
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
@@ -71,6 +82,12 @@ kotlin {
             implementation(libs.koin.core)
             implementation(libs.koin.compose)
             implementation(libs.koin.composeViewmodel)
+            implementation(project.dependencies.platform(libs.ktor.bom))
+            implementation(libs.ktor.clientCore)
+            implementation(libs.ktor.clientContentNegotiation)
+            implementation(libs.ktor.serializationKotlinxJson)
+            // Declared explicitly so Gradle resolves the catalog version and not the older one Ktor asks for.
+            implementation(libs.kotlinx.serializationJson)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -83,6 +100,10 @@ kotlin {
             implementation(project.dependencies.platform(libs.koin.bom))
             implementation(libs.koin.test)
             implementation(libs.konsist)
+            // End-to-end sync tests run the real server in-process (`testApplication`) with two clients.
+            implementation(project(":server"))
+            implementation(project.dependencies.platform(libs.ktor.bom))
+            implementation(libs.ktor.serverTestHost)
         }
         getByName("androidDeviceTest").dependencies {
             implementation(libs.androidx.testRunner)
