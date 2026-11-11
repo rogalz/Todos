@@ -80,6 +80,7 @@ kotlin {
             implementation(libs.androidx.room.runtime)
             implementation(libs.androidx.sqlite.bundled)
             implementation(libs.kotlinx.coroutinesCore)
+            implementation(libs.kotlinx.datetime)
             implementation(libs.kotlinx.serializationCore)
             implementation(project.dependencies.platform(libs.koin.bom))
             implementation(libs.koin.core)
@@ -97,6 +98,10 @@ kotlin {
             implementation(libs.kotlinx.coroutinesTest)
         }
         jvmTest.dependencies {
+            // Compose UI tests (`runComposeUiTest`) need the desktop (Skiko) runtime on the test classpath;
+            // in the app it is supplied by :desktopApp.
+            implementation(libs.compose.uiTest)
+            implementation(compose.desktop.currentOs)
             // MigrationTestHelper, used to replay the exported schemas in shared/schemas.
             implementation(libs.androidx.room.testing)
             // Guard tests: Koin graph resolution and architecture rules (both JVM-only tooling).

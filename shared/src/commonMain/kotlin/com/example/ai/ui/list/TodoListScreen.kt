@@ -2,32 +2,29 @@ package com.example.ai.ui.list
 
 import ai.shared.generated.resources.Res
 import ai.shared.generated.resources.list_add_task
-import ai.shared.generated.resources.list_empty_action
-import ai.shared.generated.resources.list_empty_message
+import ai.shared.generated.resources.list_empty_hint
 import ai.shared.generated.resources.list_empty_title
 import ai.shared.generated.resources.list_error_message
 import ai.shared.generated.resources.list_error_retry
 import ai.shared.generated.resources.list_title
 import ai.shared.generated.resources.list_write_error
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -37,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -44,11 +42,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.ai.domain.Todo
+import com.example.ai.domain.SyncOverview
+import com.example.ai.ui.nav.NoSharedElements
+import com.example.ai.ui.nav.SharedElements
+import com.example.ai.ui.nav.SharedKeys
+import com.example.ai.ui.sync.SyncStatusChip
+import com.example.ai.ui.sync.SyncStatusViewModel
+import com.example.ai.ui.theme.Spacing
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -57,9 +59,12 @@ fun TodoListScreen(
     onAddClick: () -> Unit,
     onTodoClick: (String) -> Unit,
     viewModel: TodoListViewModel = koinViewModel(),
+    syncStatusViewModel: SyncStatusViewModel = koinViewModel(),
+    sharedElements: SharedElements = NoSharedElements,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val writeFailed by viewModel.writeFailed.collectAsStateWithLifecycle()
+    val syncOverview by syncStatusViewModel.overview.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val writeErrorMessage = stringResource(Res.string.list_write_error)
@@ -72,7 +77,9 @@ fun TodoListScreen(
 
     TodoListContent(
         state = state,
+        syncOverview = syncOverview,
         snackbarHostState = snackbarHostState,
+        sharedElements = sharedElements,
         onAddClick = onAddClick,
         onTodoClick = onTodoClick,
         onToggleDone = viewModel::onToggleDone,
@@ -84,19 +91,43 @@ fun TodoListScreen(
 @Composable
 private fun TodoListContent(
     state: TodoListUiState,
+    syncOverview: SyncOverview,
     snackbarHostState: SnackbarHostState,
+    sharedElements: SharedElements,
     onAddClick: () -> Unit,
     onTodoClick: (String) -> Unit,
     onToggleDone: (id: String, isDone: Boolean) -> Unit,
     onRetry: () -> Unit,
 ) {
+    val listState = rememberLazyListState()
+    // Wide while the list is at the top or the user is scrolling back up, an icon while reading down.
+    val fabExpanded by remember {
+        derivedStateOf { !listState.canScrollBackward || listState.lastScrolledBackward }
+    }
+    val addLabel = stringResource(Res.string.list_add_task)
+
     Scaffold(
-        topBar = { TopAppBar(title = { Text(stringResource(Res.string.list_title)) }) },
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(Res.string.list_title)) },
+                actions = { SyncStatusChip(overview = syncOverview, modifier = Modifier.padding(end = Spacing.M)) },
+            )
+        },
         // Always visible, in every state, so there is always a way to create a task.
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddClick) {
-                Icon(Icons.Default.Add, contentDescription = stringResource(Res.string.list_add_task))
-            }
+            ExtendedFloatingActionButton(
+                onClick = onAddClick,
+                expanded = fabExpanded,
+                shape = CircleShape,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                // The text is gone while collapsed, so the label lives here: one announcement either way.
+                modifier = Modifier
+                    .then(sharedElements.container(SharedKeys.container(null)))
+                    .semantics { contentDescription = addLabel },
+                icon = { Icon(Icons.Default.Add, contentDescription = null) },
+                text = { Text(addLabel) },
+            )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { padding ->
@@ -117,15 +148,13 @@ private fun TodoListContent(
                     text = stringResource(Res.string.list_empty_title),
                     style = MaterialTheme.typography.titleLarge,
                 )
+                // Points at the FAB, which is always on screen; a second button here would only duplicate it.
                 Text(
-                    text = stringResource(Res.string.list_empty_message),
+                    text = stringResource(Res.string.list_empty_hint),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
-                Button(onClick = onAddClick) {
-                    Text(stringResource(Res.string.list_empty_action))
-                }
             }
 
             TodoListUiState.Error -> CenteredColumn(contentModifier) {
@@ -141,14 +170,24 @@ private fun TodoListContent(
 
             is TodoListUiState.Content -> LazyColumn(
                 modifier = contentModifier,
-                // Leaves room so the FAB never covers the last item.
-                contentPadding = PaddingValues(bottom = 96.dp),
+                state = listState,
+                // Bottom room so the FAB never covers the last card.
+                contentPadding = PaddingValues(start = Spacing.M, top = Spacing.S, end = Spacing.M, bottom = FAB_CLEARANCE),
+                verticalArrangement = Arrangement.spacedBy(Spacing.S),
             ) {
                 items(items = state.items, key = { it.id }) { todo ->
-                    TodoRow(
-                        todo = todo,
+                    TodoCard(
+                        title = todo.title,
+                        description = todo.description,
+                        isDone = todo.isDone,
+                        isSynced = todo.isSynced,
                         onClick = { onTodoClick(todo.id) },
                         onCheckedChange = { onToggleDone(todo.id, it) },
+                        // Insert, delete and reorder animate; ticking never reorders (see TodoDao).
+                        modifier = Modifier
+                            .animateItem()
+                            .then(sharedElements.container(SharedKeys.container(todo.id))),
+                        titleModifier = sharedElements.title(SharedKeys.title(todo.id)),
                     )
                 }
             }
@@ -159,55 +198,12 @@ private fun TodoListContent(
 @Composable
 private fun CenteredColumn(modifier: Modifier, content: @Composable () -> Unit) {
     Column(
-        modifier = modifier.padding(32.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+        modifier = modifier.padding(Spacing.Xl),
+        verticalArrangement = Arrangement.spacedBy(Spacing.M, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         content()
     }
 }
 
-@Composable
-private fun TodoRow(
-    todo: Todo,
-    onClick: () -> Unit,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Checkbox(
-            checked = todo.isDone,
-            onCheckedChange = onCheckedChange,
-            // Gives screen readers the task name, otherwise it is an unlabeled checkbox.
-            modifier = Modifier.semantics { contentDescription = todo.title },
-        )
-        Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
-            Text(
-                text = todo.title,
-                style = MaterialTheme.typography.bodyLarge,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                textDecoration = if (todo.isDone) TextDecoration.LineThrough else null,
-                color = if (todo.isDone) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                },
-            )
-            if (todo.description.isNotBlank()) {
-                Text(
-                    text = todo.description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
-}
+private val FAB_CLEARANCE = 96.dp

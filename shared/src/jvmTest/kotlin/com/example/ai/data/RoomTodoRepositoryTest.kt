@@ -17,6 +17,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Instant
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -66,7 +67,11 @@ class RoomTodoRepositoryTest {
             ),
             database.rawRow(id),
         )
-        assertEquals(Todo(id, "Title", "Desc", isDone = false), repository.getTodo(id))
+        // A new row is not on the server yet and was last changed "now": both show in the domain model.
+        assertEquals(
+            Todo(id, "Title", "Desc", isDone = false, updatedAt = Instant.fromEpochMilliseconds(now), isSynced = false),
+            repository.getTodo(id),
+        )
     }
 
     @OptIn(ExperimentalUuidApi::class)

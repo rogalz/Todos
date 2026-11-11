@@ -29,7 +29,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -37,6 +37,8 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,30 +49,47 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigationevent.NavigationEventInfo
 import androidx.navigationevent.compose.NavigationBackHandler
 import androidx.navigationevent.compose.rememberNavigationEventState
+import com.example.ai.ui.nav.NoSharedElements
+import com.example.ai.ui.nav.SharedElements
+import com.example.ai.ui.nav.SharedKeys
+import com.example.ai.ui.theme.Spacing
 import org.jetbrains.compose.resources.stringResource
+import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
+import kotlin.time.Clock
 
 /**
  * @param todoId id of the todo to edit, `null` to create a new one.
  * @param onClose called exactly once, after changes have been saved, when the screen should be popped.
+ * @param sharedElements the parts that travel from the list card (or the FAB) into this screen.
+ * @param clock only for the "Edited ..." footer.
  */
 @Composable
 fun TodoDetailScreen(
     todoId: String?,
     onClose: () -> Unit,
     viewModel: TodoDetailViewModel = koinViewModel(parameters = { parametersOf(todoId) }),
+    sharedElements: SharedElements = NoSharedElements,
+    clock: Clock = koinInject(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     // Every way of going back funnels into the ViewModel, which saves before asking us to close.
+    //
+    // Trade-off, on purpose: because this handler owns "back", NavHost's own back handling is bypassed
+    // here. The closing animation therefore starts once back is *committed* (arrow, key or gesture); on
+    // Android the predictive-back gesture does not scrub it under the finger. Letting NavHost seek the
+    // transition would mean popping first and saving afterwards, which loses "stay on the screen and
+    // offer Discard when the save fails" and ties the save of a new todo to the screen's lifetime.
+    // Save-then-pop is the behaviour this screen guarantees, so it wins.
     NavigationBackHandler(
         state = rememberNavigationEventState(currentInfo = NavigationEventInfo.None),
         isBackEnabled = true,
@@ -110,8 +129,11 @@ fun TodoDetailScreen(
 
     TodoDetailContent(
         state = state,
+        todoId = todoId,
         viewModel = viewModel,
         snackbarHostState = snackbarHostState,
+        sharedElements = sharedElements,
+        clock = clock,
     )
 
     if (state.showDeleteConfirmation) {
@@ -133,13 +155,39 @@ fun TodoDetailScreen(
     }
 }
 
+/**
+ * The fields are "borderless": the container and the indicator line are transparent, so the text sits
+ * directly on the page like a note. `Color.Transparent` is the absence of a colour, not a palette
+ * colour, so it is the one colour value allowed outside the theme.
+ */
+@Composable
+private fun borderlessFieldColors() = TextFieldDefaults.colors(
+    focusedContainerColor = Color.Transparent,
+    unfocusedContainerColor = Color.Transparent,
+    disabledContainerColor = Color.Transparent,
+    errorContainerColor = Color.Transparent,
+    focusedIndicatorColor = Color.Transparent,
+    unfocusedIndicatorColor = Color.Transparent,
+    disabledIndicatorColor = Color.Transparent,
+    errorIndicatorColor = Color.Transparent,
+)
+
 @Composable
 private fun TodoDetailContent(
     state: TodoDetailUiState,
+    todoId: String?,
     viewModel: TodoDetailViewModel,
     snackbarHostState: SnackbarHostState,
+    sharedElements: SharedElements,
+    clock: Clock,
 ) {
+    // The morph is for opening only. Once the screen is closing (the save has finished) it stops being a
+    // shared element, so there is nothing to match on the list and the way out is the plain fade-through
+    // from `AppNavHost`. The modifier is gone before the pop starts: `closeRequested` is what triggers it.
+    val closing = state.closeRequested
     Scaffold(
+        // The whole screen is what the list card (or the FAB) morphs into.
+        modifier = if (closing) Modifier else sharedElements.container(SharedKeys.container(todoId)),
         topBar = {
             TopAppBar(
                 title = {
@@ -180,26 +228,45 @@ private fun TodoDetailContent(
             if (state.isNew) {
                 LaunchedEffect(Unit) { titleFocus.requestFocus() }
             }
+            val fieldColors = borderlessFieldColors()
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
                     .imePadding()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                    .padding(Spacing.S),
+                verticalArrangement = Arrangement.spacedBy(Spacing.S),
             ) {
-                OutlinedTextField(
+                TextField(
                     state = viewModel.titleState,
-                    modifier = Modifier.fillMaxWidth().focusRequester(titleFocus),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(titleFocus)
+                        // The title morphs along with the card it came from (opening only, see above).
+                        .then(if (closing) Modifier else sharedElements.title(SharedKeys.title(todoId))),
+                    textStyle = MaterialTheme.typography.headlineSmall,
                     label = { Text(stringResource(Res.string.detail_field_title)) },
                     lineLimits = TextFieldLineLimits.SingleLine,
+                    colors = fieldColors,
                 )
-                OutlinedTextField(
+                TextField(
                     state = viewModel.descriptionState,
                     modifier = Modifier.fillMaxWidth().weight(1f),
+                    textStyle = MaterialTheme.typography.bodyLarge,
                     label = { Text(stringResource(Res.string.detail_field_description)) },
                     lineLimits = TextFieldLineLimits.MultiLine(),
+                    colors = fieldColors,
                 )
+                // A new todo has no history yet.
+                state.updatedAt?.let { updatedAt ->
+                    // One reading of "now" per opened todo: the text does not tick while the screen is open.
+                    val now = remember(updatedAt) { clock.now() }
+                    EditedFooter(
+                        updatedAt = updatedAt,
+                        now = now,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.M, vertical = Spacing.S),
+                    )
+                }
             }
         }
     }

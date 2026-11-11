@@ -1,0 +1,4 @@
+<resources>
+    <!-- Must equal `background` of the light scheme in shared/.../ui/theme/Color.kt (AndroidWindowThemeTest checks). -->
+    <color name="window_background">#FFF8F1</color>
+</resources>

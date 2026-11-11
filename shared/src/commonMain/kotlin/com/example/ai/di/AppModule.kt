@@ -15,11 +15,14 @@ import com.example.ai.data.sync.AppForeground
 import com.example.ai.data.sync.BackgroundSyncFallback
 import com.example.ai.data.sync.LiveUpdates
 import com.example.ai.data.sync.SyncEngine
+import com.example.ai.data.sync.SyncEngineStatusRepository
 import com.example.ai.data.sync.SyncScheduler
 import com.example.ai.data.sync.SyncStore
+import com.example.ai.domain.SyncStatusRepository
 import com.example.ai.domain.TodoRepository
 import com.example.ai.ui.detail.TodoDetailViewModel
 import com.example.ai.ui.list.TodoListViewModel
+import com.example.ai.ui.sync.SyncStatusViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngine
 import kotlinx.coroutines.CoroutineScope
@@ -40,7 +43,21 @@ expect val platformModule: Module
 /** Qualifier of the app-lifetime scope that the sync scheduler runs in. */
 internal val AppScope = named("appScope")
 
+/**
+ * The ViewModels, in a module of their own so that UI tests run exactly this wiring over fake
+ * repositories (the detail screen's `todoId` parameter included) instead of a copy that could drift.
+ */
+val viewModelModule = module {
+    viewModel { TodoListViewModel(get()) }
+    viewModel { SyncStatusViewModel(get()) }
+    // Parameter is the todo id; `null` (nothing matching String) means "create a new todo". The type
+    // argument must stay in sync with the id type: a mismatch compiles but silently reads as `null`.
+    viewModel { params -> TodoDetailViewModel(todoId = params.getOrNull<String>(), repository = get()) }
+}
+
 val appModule = module {
+    includes(viewModelModule)
+
     // The only place that names Clock.System; everything else gets the clock injected.
     single<Clock> { Clock.System }
     single<AppDatabase> { getRoomDatabase(builder = get(), clock = get()) }
@@ -82,8 +99,13 @@ val appModule = module {
         )
     }
 
-    viewModel { TodoListViewModel(get()) }
-    // Parameter is the todo id; `null` (nothing matching String) means "create a new todo". The type
-    // argument must stay in sync with the id type: a mismatch compiles but silently reads as `null`.
-    viewModel { params -> TodoDetailViewModel(todoId = params.getOrNull<String>(), repository = get()) }
+    // ---- sync visibility (stage 5) ----
+    // Read-only: the UI sees only the domain interface, never the engine. Resolving it starts nothing.
+    single<SyncStatusRepository> {
+        SyncEngineStatusRepository(
+            engineState = get<SyncEngine>().state,
+            pendingCount = get<SyncStore>().observePendingCount(),
+            connection = get<LiveUpdates>().connection,
+        )
+    }
 }

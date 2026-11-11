@@ -4,13 +4,18 @@ import com.example.ai.api.TodoDto
 import com.example.ai.data.local.SyncStatus
 import com.example.ai.data.local.TodoEntity
 import com.example.ai.domain.Todo
+import kotlin.time.Instant
 
-// The domain model intentionally carries no timestamps or sync state (the UI does not need them).
+// The domain model carries only what the UI shows: `updatedAt` (the "Edited ..." footer) and
+// `isSynced` (the "not synced yet" icon). `createdAt` (list order only) and `deletedAt` (tombstones are
+// never listed) deliberately stay out.
 fun TodoEntity.toDomain(): Todo = Todo(
     id = id,
     title = title,
     description = description,
     isDone = isDone,
+    updatedAt = Instant.fromEpochMilliseconds(updatedAt),
+    isSynced = syncStatus == SyncStatus.SYNCED,
 )
 
 // Wire format <-> row. `syncStatus` is local bookkeeping and never goes over the wire.
@@ -36,8 +41,9 @@ fun TodoDto.toEntity(syncStatus: SyncStatus = SyncStatus.SYNCED): TodoEntity = T
     syncStatus = syncStatus,
 )
 
-// The bookkeeping fields have no home in `Todo`, so the caller has to state them explicitly
-// instead of this function inventing values.
+// The caller states all bookkeeping explicitly instead of this function inventing values. That includes
+// `updatedAt` and `syncStatus`: the todo's own `updatedAt` / `isSynced` are display values and are
+// deliberately ignored here, so there is exactly one source for what gets stored.
 fun Todo.toEntity(
     createdAt: Long,
     updatedAt: Long,

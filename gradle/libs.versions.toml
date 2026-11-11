@@ -15,6 +15,8 @@ composeMultiplatform = "1.12.2"
 junit = "4.13.2"
 kotlin = "2.4.21"
 kotlinx-coroutines = "1.11.0"
+# Calendar math for the "Edited ..." footer (kotlin.time.Instant has no time zones or dates).
+kotlinx-datetime = "0.8.0"
 material3 = "1.12.0-alpha03"
 # Last published KMP release (Dec 2024); the icon glyphs are static, so a frozen version is fine.
 materialIcons = "1.7.3"
@@ -52,10 +54,13 @@ compose-material3 = { module = "org.jetbrains.compose.material3:material3", vers
 compose-materialIconsCore = { module = "org.jetbrains.compose.material:material-icons-core", version.ref = "materialIcons" }
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "composeMultiplatform" }
 compose-components-resources = { module = "org.jetbrains.compose.components:components-resources", version.ref = "composeMultiplatform" }
+# Compose UI tests on the JVM (`runComposeUiTest`); the desktop runtime comes from `compose.desktop.currentOs`.
+compose-uiTest = { module = "org.jetbrains.compose.ui:ui-test", version.ref = "composeMultiplatform" }
 compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "composeMultiplatform" }
 kotlinx-coroutinesSwing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutinesCore = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutinesTest = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
 kotlinx-serializationCore = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "kotlinx-serialization" }
 # Same version ref as core on purpose: the two artifacts must never be mixed (Ktor pulls an older json transitively).
 kotlinx-serializationJson = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }

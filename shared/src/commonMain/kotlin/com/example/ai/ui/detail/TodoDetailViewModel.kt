@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.time.Instant
 
 enum class DetailError { SaveFailed, DeleteFailed }
 
@@ -26,6 +27,11 @@ data class TodoDetailUiState(
     val error: DetailError? = null,
     /** One-shot-by-state: the UI pops the screen exactly once when this turns `true`. */
     val closeRequested: Boolean = false,
+    /**
+     * When the todo was last changed, for the "Edited ..." footer. `null` for a new todo and while loading.
+     * Read once at load: it is not live, because the screen is closed right after saving anyway.
+     */
+    val updatedAt: Instant? = null,
 )
 
 /**
@@ -80,7 +86,7 @@ class TodoDetailViewModel(
                         titleState.setTextAndPlaceCursorAtEnd(todo.title)
                         descriptionState.setTextAndPlaceCursorAtEnd(todo.description)
                         lastSaved = Content(todo.title, todo.description)
-                        _uiState.update { it.copy(isLoading = false) }
+                        _uiState.update { it.copy(isLoading = false, updatedAt = todo.updatedAt) }
                     }
                 }
                 // Nothing to edit if we cannot read it, leave instead of showing an empty form
