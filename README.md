@@ -16,6 +16,18 @@ Targets: Android, Desktop (JVM), iOS.
   - A new task is created only by leaving the screen with back, not when the app is backgrounded.
   - Trash icon deletes a task (with confirmation).
 
+## Voice to todo
+
+The small mic button above "New task" turns a sentence into a **draft**: on Android you speak (the
+device's speech recognizer), on desktop and iOS you type one sentence. The server asks a local LLM
+(Ollama) to turn it into a title and description, which pre-fill a new task marked "Filled by AI,
+check before saving". **A draft is only stored by its Save button**; going back asks "Discard draft?".
+If the AI cannot be reached the title is your own words and a snackbar says so.
+
+Needs `ollama serve` with the model pulled (`ollama pull llama3.2:3b`). The server reads `OLLAMA_URL`
+(default `http://localhost:11434`, `docker-compose.yml` uses `http://host.docker.internal:11434`) and
+`OLLAMA_MODEL`. Quality check, not part of CI: `python3 scripts/eval-parse.py` (results in `docs/eval/`).
+
 ## Stack
 
 | | |

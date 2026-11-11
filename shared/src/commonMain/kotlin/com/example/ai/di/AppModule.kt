@@ -1,5 +1,6 @@
 package com.example.ai.di
 
+import com.example.ai.data.ApiTodoDraftParser
 import com.example.ai.data.RoomTodoRepository
 import com.example.ai.data.local.AppDatabase
 import com.example.ai.data.local.SyncDao
@@ -19,9 +20,12 @@ import com.example.ai.data.sync.SyncEngineStatusRepository
 import com.example.ai.data.sync.SyncScheduler
 import com.example.ai.data.sync.SyncStore
 import com.example.ai.domain.SyncStatusRepository
+import com.example.ai.domain.TodoDraftParser
 import com.example.ai.domain.TodoRepository
+import com.example.ai.ui.detail.Dictation
 import com.example.ai.ui.detail.TodoDetailViewModel
 import com.example.ai.ui.list.TodoListViewModel
+import com.example.ai.ui.list.VoiceInputViewModel
 import com.example.ai.ui.sync.SyncStatusViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngine
@@ -36,7 +40,8 @@ import kotlin.time.Clock
 
 /**
  * Provides what differs per platform: the `RoomDatabase.Builder<AppDatabase>`, the Ktor
- * `HttpClientEngine`, the [ServerConfig] (the server's address) and the [AppForeground] signal.
+ * `HttpClientEngine`, the [ServerConfig] (the server's address), the [AppForeground] signal and,
+ * for voice input, the `SpeechToText` and `MicPermission` (no-ops everywhere but Android).
  */
 expect val platformModule: Module
 
@@ -50,9 +55,20 @@ internal val AppScope = named("appScope")
 val viewModelModule = module {
     viewModel { TodoListViewModel(get()) }
     viewModel { SyncStatusViewModel(get()) }
-    // Parameter is the todo id; `null` (nothing matching String) means "create a new todo". The type
-    // argument must stay in sync with the id type: a mismatch compiles but silently reads as `null`.
-    viewModel { params -> TodoDetailViewModel(todoId = params.getOrNull<String>(), repository = get()) }
+    viewModel { VoiceInputViewModel(speech = get(), micPermission = get()) }
+    // Parameters: the todo id, `null` (nothing matching String) meaning "create a new todo", and,
+    // only for a task that comes from dictation, a `Dictation`. Koin matches parameters by TYPE, so
+    // the dictated text is wrapped in its own type: two `String?` would be mixed up (`parametersOf(null,
+    // "milk")` would read "milk" as an id). The type arguments must stay in sync with what the screen
+    // passes: a mismatch compiles but silently reads as `null`.
+    viewModel { params ->
+        TodoDetailViewModel(
+            todoId = params.getOrNull<String>(),
+            repository = get(),
+            dictatedText = params.getOrNull<Dictation>()?.text,
+            draftParser = get(),
+        )
+    }
 }
 
 val appModule = module {
@@ -98,6 +114,9 @@ val appModule = module {
             scope = get(AppScope),
         )
     }
+
+    // ---- voice to todo (stage 6) ----
+    single<TodoDraftParser> { ApiTodoDraftParser(api = get()) }
 
     // ---- sync visibility (stage 5) ----
     // Read-only: the UI sees only the domain interface, never the engine. Resolving it starts nothing.

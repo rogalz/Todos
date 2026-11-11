@@ -42,6 +42,14 @@ spec in `docs/specs/`. Implement only what the current spec asks for.
 - Server (local): `./gradlew :server:run` → `http://localhost:8080` (`PORT` env to change it)
 - Server in Docker: `./gradlew :server:buildFatJar && docker compose up --build` (the image only
   copies the host-built jar)
+- Voice → todo needs a local Ollama (`ollama serve`, model `llama3.2:3b` pulled). The server reads
+  `OLLAMA_URL` (default `http://localhost:11434`; `docker-compose.yml` sets
+  `http://host.docker.internal:11434`) and `OLLAMA_MODEL`. Without Ollama `/parse` answers 503 and the
+  app falls back to the user's own words. Dictated tasks are drafts: stored only by the Save button.
+- `/parse` quality eval against a running server (not CI, needs Ollama):
+  `python3 scripts/eval-parse.py [base-url]`; writes `docs/eval/<date>.md` (never overwrites an earlier
+  run), measures quality and is never a pass/fail gate. Bump `PROMPT_VERSION` in `ParsePrompt.kt` with
+  every prompt change so an eval can be tied to the prompt that produced it.
 - Server smoke test against a running server: `scripts/smoke.sh [base-url]` (checks status codes and
   key body fragments, exits 1 on any failure; the delta checks assume a freshly started server)
 - Android emulator → local server: `scripts/android-reverse.sh` (`adb reverse tcp:8080 tcp:8080`).

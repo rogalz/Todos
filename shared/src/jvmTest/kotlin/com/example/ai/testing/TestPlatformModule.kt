@@ -2,10 +2,14 @@ package com.example.ai.testing
 
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.example.ai.data.NoMicPermissionNeeded
+import com.example.ai.data.NoSpeechToText
 import com.example.ai.data.local.AppDatabase
 import com.example.ai.data.remote.ServerConfig
 import com.example.ai.data.sync.AlwaysForeground
 import com.example.ai.data.sync.AppForeground
+import com.example.ai.domain.MicPermission
+import com.example.ai.domain.SpeechToText
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.okhttp.OkHttp
 import org.koin.dsl.module
@@ -20,4 +24,6 @@ fun fakePlatformModule() = module {
     single<HttpClientEngine> { OkHttp.create() }
     single { ServerConfig(baseUrl = "http://localhost:8080") }
     single<AppForeground> { AlwaysForeground }
+    single<SpeechToText> { NoSpeechToText }
+    single<MicPermission> { NoMicPermissionNeeded }
 }

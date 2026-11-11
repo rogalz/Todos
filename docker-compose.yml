@@ -8,3 +8,10 @@ services:
     environment:
       # The container listens on the same port it is published on, so PORT means one thing everywhere.
       PORT: "${PORT:-8080}"
+      # Ollama runs on the host (the Mac), not in a container, so the container reaches it through
+      # Docker's host alias. Override OLLAMA_URL / OLLAMA_MODEL in the shell to point elsewhere.
+      OLLAMA_URL: "${OLLAMA_URL:-http://host.docker.internal:11434}"
+      OLLAMA_MODEL: "${OLLAMA_MODEL:-llama3.2:3b}"
+    extra_hosts:
+      # Docker Desktop (Mac) defines host.docker.internal itself; this makes it work on Linux too.
+      - "host.docker.internal:host-gateway"

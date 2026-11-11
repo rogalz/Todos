@@ -4,14 +4,21 @@ import android.content.Context
 import androidx.room.RoomDatabase
 import com.example.ai.data.local.AppDatabase
 import com.example.ai.data.local.getDatabaseBuilder
+import com.example.ai.data.speech.AndroidMicPermission
+import com.example.ai.data.speech.AndroidSpeechToText
 import com.example.ai.data.remote.ServerConfig
 import com.example.ai.data.sync.AppForeground
 import com.example.ai.data.sync.BackgroundSyncFallback
 import com.example.ai.data.sync.ProcessLifecycleForeground
 import com.example.ai.data.sync.WorkManagerSyncFallback
+import com.example.ai.domain.MicPermission
+import com.example.ai.domain.SpeechToText
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.engine.okhttp.OkHttp
+import android.Manifest
+import android.content.pm.PackageManager
 import org.koin.android.ext.koin.androidContext
+import org.koin.mp.KoinPlatformTools
 import org.koin.core.module.Module
 import org.koin.dsl.module
 
@@ -27,7 +34,21 @@ actual val platformModule: Module = module {
     single<BackgroundSyncFallback> { WorkManagerSyncFallback(androidContext()) }
     // The live-updates stream is open only while an activity is visible.
     single<AppForeground> { ProcessLifecycleForeground() }
+    single<SpeechToText> { AndroidSpeechToText(androidContext()) }
+    single {
+        val context = androidContext()
+        AndroidMicPermission {
+            context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+    single<MicPermission> { get<AndroidMicPermission>() }
 }
+
+/**
+ * The object `MainActivity` wires its permission launcher to (`androidApp` has no Koin of its own).
+ * Only valid after [initKoin].
+ */
+fun androidMicPermission(): AndroidMicPermission = KoinPlatformTools.defaultContext().get().get()
 
 /** Android entry point, call from `Application.onCreate`. Safe to call repeatedly. */
 fun initKoin(context: Context) = startKoinApp { androidContext(context.applicationContext) }

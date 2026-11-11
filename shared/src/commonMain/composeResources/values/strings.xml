@@ -42,6 +42,33 @@
     <string name="detail_edited_yesterday">Edited yesterday</string>
     <string name="detail_edited_on">Edited %1$s</string>
 
+    <!-- A task that starts from dictation (an AI draft: it needs an explicit Save) -->
+    <string name="detail_save">Save</string>
+    <string name="detail_filling">Filling…</string>
+    <string name="detail_ai_hint">Filled by AI, check before saving</string>
+    <string name="detail_ai_unavailable">Couldn't reach the AI, used your words</string>
+    <string name="discard_draft_title">Discard draft?</string>
+    <string name="discard_draft_message">This task hasn't been saved yet.</string>
+    <string name="discard_draft_confirm">Discard</string>
+    <string name="discard_draft_keep">Keep editing</string>
+
+    <!-- Voice input on the list screen -->
+    <string name="voice_mic_button">Dictate a task</string>
+    <string name="voice_mic_button_disabled">Dictate a task (microphone access denied)</string>
+    <string name="voice_listening_title">Listening…</string>
+    <string name="voice_listening_prompt">Say your task</string>
+    <string name="voice_listening_done">Done</string>
+    <string name="voice_listening_cancel">Cancel</string>
+    <string name="voice_type_title">Describe your task</string>
+    <string name="voice_type_label">What do you need to do?</string>
+    <string name="voice_type_confirm">Continue</string>
+    <string name="voice_type_cancel">Cancel</string>
+    <string name="voice_permission_title">Microphone access needed</string>
+    <string name="voice_permission_message">To dictate a task, allow microphone access in your device settings. Until then you can still type your tasks.</string>
+    <string name="voice_permission_ok">OK</string>
+    <string name="voice_nothing_heard">Didn't catch that. Please try again.</string>
+    <string name="voice_unavailable">Speech recognition isn't available right now.</string>
+
     <!-- Delete dialog -->
     <string name="delete_dialog_title">Delete task?</string>
     <string name="delete_dialog_message">This can't be undone.</string>

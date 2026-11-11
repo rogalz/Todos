@@ -8,6 +8,15 @@ object ApiRoutes {
     /** `GET`, `text/event-stream`: see [ServerEvent]. */
     const val EVENTS = "/events"
 
+    /** `POST` [ParseRequest] → [ParsedTodoDto]: turns a spoken or typed sentence into a todo draft. */
+    const val PARSE = "/parse"
+
+    /** Longest accepted [ParseRequest.text] (trimmed); longer is a 400. */
+    const val PARSE_MAX_TEXT_LENGTH = 1000
+
+    /** The server cuts a longer [ParsedTodoDto.title] to this. The client uses it for its own fallback title. */
+    const val PARSE_MAX_TITLE_LENGTH = 80
+
     /** SSE `event:` names of [ServerEvent.Hello] and [ServerEvent.Changed]. */
     const val EVENT_HELLO = "hello"
     const val EVENT_CHANGED = "changed"

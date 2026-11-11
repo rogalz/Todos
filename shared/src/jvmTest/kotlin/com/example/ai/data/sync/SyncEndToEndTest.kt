@@ -44,6 +44,7 @@ class SyncEndToEndTest {
 
         override suspend fun push(todo: TodoDto) = reachable().push(todo)
         override suspend fun pull(since: Long, serverId: String?): ChangesResponse = reachable().pull(since, serverId)
+        override suspend fun parse(text: String) = reachable().parse(text)
     }
 
     private class Client(val link: Link, val clock: FakeClock) {

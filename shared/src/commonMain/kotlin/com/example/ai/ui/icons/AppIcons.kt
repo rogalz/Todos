@@ -4,12 +4,13 @@ import ai.shared.generated.resources.Res
 import ai.shared.generated.resources.ic_cloud_done
 import ai.shared.generated.resources.ic_cloud_off
 import ai.shared.generated.resources.ic_cloud_upload
+import ai.shared.generated.resources.ic_mic
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.painter.Painter
 import org.jetbrains.compose.resources.painterResource
 
 /**
- * Icons that `material-icons-core` does not have (the cloud family), as vector drawables in
+ * Icons that `material-icons-core` does not have (the cloud family, the microphone), as vector drawables in
  * `composeResources/drawable`. Everything else comes from `Icons.Default`. Tinted by the caller.
  */
 internal object AppIcons {
@@ -21,4 +22,7 @@ internal object AppIcons {
 
     /** A local change that is waiting to be uploaded. */
     val CloudUpload: Painter @Composable get() = painterResource(Res.drawable.ic_cloud_upload)
+
+    /** Dictate a task. */
+    val Mic: Painter @Composable get() = painterResource(Res.drawable.ic_mic)
 }

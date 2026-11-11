@@ -5,26 +5,37 @@ import ai.shared.generated.resources.delete_dialog_cancel
 import ai.shared.generated.resources.delete_dialog_confirm
 import ai.shared.generated.resources.delete_dialog_message
 import ai.shared.generated.resources.delete_dialog_title
+import ai.shared.generated.resources.detail_ai_hint
+import ai.shared.generated.resources.detail_ai_unavailable
 import ai.shared.generated.resources.detail_back
 import ai.shared.generated.resources.detail_delete
 import ai.shared.generated.resources.detail_delete_error
 import ai.shared.generated.resources.detail_field_description
 import ai.shared.generated.resources.detail_field_title
+import ai.shared.generated.resources.detail_filling
+import ai.shared.generated.resources.detail_save
 import ai.shared.generated.resources.detail_save_error
 import ai.shared.generated.resources.detail_save_error_discard
 import ai.shared.generated.resources.detail_title_edit
 import ai.shared.generated.resources.detail_title_new
+import ai.shared.generated.resources.discard_draft_confirm
+import ai.shared.generated.resources.discard_draft_keep
+import ai.shared.generated.resources.discard_draft_message
+import ai.shared.generated.resources.discard_draft_title
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -50,6 +61,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -68,6 +80,8 @@ import kotlin.time.Clock
 
 /**
  * @param todoId id of the todo to edit, `null` to create a new one.
+ * @param dictatedText a sentence the user spoke or typed, to create a new todo as an AI draft (needs a
+ *   `null` [todoId]). A draft has a Save action and is never stored by going back.
  * @param onClose called exactly once, after changes have been saved, when the screen should be popped.
  * @param sharedElements the parts that travel from the list card (or the FAB) into this screen.
  * @param clock only for the "Edited ..." footer.
@@ -76,7 +90,13 @@ import kotlin.time.Clock
 fun TodoDetailScreen(
     todoId: String?,
     onClose: () -> Unit,
-    viewModel: TodoDetailViewModel = koinViewModel(parameters = { parametersOf(todoId) }),
+    dictatedText: String? = null,
+    viewModel: TodoDetailViewModel = koinViewModel(
+        // The `Dictation` is only passed when there is one: `parametersOf(todoId)` stays what it always was.
+        parameters = {
+            if (dictatedText == null) parametersOf(todoId) else parametersOf(todoId, Dictation(dictatedText))
+        },
+    ),
     sharedElements: SharedElements = NoSharedElements,
     clock: Clock = koinInject(),
 ) {
@@ -106,6 +126,7 @@ fun TodoDetailScreen(
     val saveErrorMessage = stringResource(Res.string.detail_save_error)
     val discardLabel = stringResource(Res.string.detail_save_error_discard)
     val deleteErrorMessage = stringResource(Res.string.detail_delete_error)
+    val aiUnavailableMessage = stringResource(Res.string.detail_ai_unavailable)
     LaunchedEffect(state.error) {
         when (state.error) {
             DetailError.SaveFailed -> {
@@ -123,6 +144,11 @@ fun TodoDetailScreen(
                 viewModel.onErrorShown()
             }
 
+            DetailError.AiUnavailable -> {
+                snackbarHostState.showSnackbar(aiUnavailableMessage)
+                viewModel.onErrorShown()
+            }
+
             null -> Unit
         }
     }
@@ -135,6 +161,25 @@ fun TodoDetailScreen(
         sharedElements = sharedElements,
         clock = clock,
     )
+
+    if (state.showDiscardDraftConfirmation) {
+        // Back on a draft never saves: it asks. Saving is the Save action in the top bar.
+        AlertDialog(
+            onDismissRequest = viewModel::onDiscardDraftDismissed,
+            title = { Text(stringResource(Res.string.discard_draft_title)) },
+            text = { Text(stringResource(Res.string.discard_draft_message)) },
+            confirmButton = {
+                TextButton(onClick = viewModel::onDiscardDraftConfirmed) {
+                    Text(stringResource(Res.string.discard_draft_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::onDiscardDraftDismissed) {
+                    Text(stringResource(Res.string.discard_draft_keep))
+                }
+            },
+        )
+    }
 
     if (state.showDeleteConfirmation) {
         AlertDialog(
@@ -206,6 +251,15 @@ private fun TodoDetailContent(
                     }
                 },
                 actions = {
+                    if (state.isDraft) {
+                        // The explicit approval. Needs a title, like every todo.
+                        TextButton(
+                            onClick = viewModel::onSaveClick,
+                            enabled = viewModel.titleState.text.isNotBlank(),
+                        ) {
+                            Text(stringResource(Res.string.detail_save))
+                        }
+                    }
                     if (state.canDelete) {
                         IconButton(onClick = viewModel::onDeleteClick) {
                             Icon(
@@ -225,9 +279,11 @@ private fun TodoDetailContent(
             }
         } else {
             val titleFocus = remember { FocusRequester() }
-            if (state.isNew) {
+            // Not for a draft: the keyboard would cover the draft the user came here to read.
+            if (state.isNew && !state.isDraft) {
                 LaunchedEffect(Unit) { titleFocus.requestFocus() }
             }
+            val fillingLabel = stringResource(Res.string.detail_filling)
             val fieldColors = borderlessFieldColors()
             Column(
                 modifier = Modifier
@@ -245,15 +301,24 @@ private fun TodoDetailContent(
                         // The title morphs along with the card it came from (opening only, see above).
                         .then(if (closing) Modifier else sharedElements.title(SharedKeys.title(todoId))),
                     textStyle = MaterialTheme.typography.headlineSmall,
-                    label = { Text(stringResource(Res.string.detail_field_title)) },
+                    label = {
+                        val waiting = state.isFilling && viewModel.titleState.text.isEmpty()
+                        Text(if (waiting) fillingLabel else stringResource(Res.string.detail_field_title))
+                    },
                     lineLimits = TextFieldLineLimits.SingleLine,
                     colors = fieldColors,
                 )
+                if (viewModel.showAiHint) {
+                    AiHint(modifier = Modifier.padding(horizontal = Spacing.M))
+                }
                 TextField(
                     state = viewModel.descriptionState,
                     modifier = Modifier.fillMaxWidth().weight(1f),
                     textStyle = MaterialTheme.typography.bodyLarge,
-                    label = { Text(stringResource(Res.string.detail_field_description)) },
+                    label = {
+                        val waiting = state.isFilling && viewModel.descriptionState.text.isEmpty()
+                        Text(if (waiting) fillingLabel else stringResource(Res.string.detail_field_description))
+                    },
                     lineLimits = TextFieldLineLimits.MultiLine(),
                     colors = fieldColors,
                 )
@@ -269,5 +334,27 @@ private fun TodoDetailContent(
                 }
             }
         }
+    }
+}
+
+/** Says the text came from the AI and should be checked; the icon plus text, so it is not colour alone. */
+@Composable
+private fun AiHint(modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(Spacing.S),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Default.Info,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = stringResource(Res.string.detail_ai_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

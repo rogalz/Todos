@@ -1,6 +1,7 @@
 package com.example.ai.testing
 
 import com.example.ai.api.ChangesResponse
+import com.example.ai.api.ParsedTodoDto
 import com.example.ai.api.TodoDto
 import com.example.ai.data.remote.TodoApi
 
@@ -34,6 +35,12 @@ class FakeTodoApi(var serverId: String = "server-1") : TodoApi {
     /** Same for pulls. */
     var onPull: suspend () -> Unit = {}
 
+    /** Every text sent to `parse`, in order. */
+    val parses = mutableListOf<String>()
+
+    /** What `parse` answers; replace it to suspend or throw. */
+    var onParse: suspend (String) -> ParsedTodoDto = { ParsedTodoDto(title = it, description = "") }
+
     val stored: Map<String, TodoDto> get() = todos.mapValues { it.value.dto }
 
     /** A version that another device pushed earlier. */
@@ -60,6 +67,11 @@ class FakeTodoApi(var serverId: String = "server-1") : TodoApi {
         val restarted = serverId != null && serverId != this.serverId
         val items = todos.values.filter { restarted || it.revision > since }.sortedBy { it.revision }.map { it.dto }
         return ChangesResponse(items = items, revision = revision, serverId = this.serverId, reset = restarted)
+    }
+
+    override suspend fun parse(text: String): ParsedTodoDto {
+        parses += text
+        return onParse(text)
     }
 
     private fun store(incoming: TodoDto): TodoDto {

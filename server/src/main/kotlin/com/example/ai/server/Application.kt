@@ -19,10 +19,12 @@ val DEFAULT_HEARTBEAT_PERIOD: Duration = 15.seconds
  * (`testApplication { application { module(store) } }`) and `main` can start it with a fresh one.
  *
  * @param heartbeatPeriod a parameter so tests do not have to wait 15 s to see a heartbeat.
+ * @param llm behind `POST /parse`; tests pass a fake. The default answers 503 (see [NoLlmClient]).
  */
 fun Application.module(
     store: TodoStore = TodoStore(),
     heartbeatPeriod: Duration = DEFAULT_HEARTBEAT_PERIOD,
+    llm: LlmClient = NoLlmClient,
 ) {
     // One log line per request: status, method, path and duration.
     install(CallLogging)
@@ -36,5 +38,6 @@ fun Application.module(
     routing {
         todoRoutes(store)
         eventRoutes(store, heartbeatPeriod)
+        parseRoutes(llm)
     }
 }
