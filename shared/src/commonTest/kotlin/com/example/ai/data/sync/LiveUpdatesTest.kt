@@ -3,6 +3,7 @@ package com.example.ai.data.sync
 import com.example.ai.api.ServerEvent
 import com.example.ai.testing.FakeAppForeground
 import com.example.ai.testing.FakeTodoEvents
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.currentTime
@@ -16,6 +17,7 @@ import kotlin.test.assertTrue
  * Virtual time and fakes: a scripted event stream, a foreground switch, and recorders in place of the
  * scheduler, so no database and no network are involved.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class LiveUpdatesTest {
 
     private class Fixture(private val testScope: TestScope, foreground: Boolean = true) {

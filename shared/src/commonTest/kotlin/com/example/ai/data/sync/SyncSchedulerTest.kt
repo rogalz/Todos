@@ -3,6 +3,7 @@ package com.example.ai.data.sync
 import com.example.ai.data.remote.ApiException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -22,6 +23,7 @@ import kotlin.test.assertTrue
  * nothing. A `MutableStateFlow` stands in for Room's pending count and a scripted function for the
  * engine, so these tests need no database.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class SyncSchedulerTest {
 
     private val offline = SyncResult.Failure(Exception("offline"))

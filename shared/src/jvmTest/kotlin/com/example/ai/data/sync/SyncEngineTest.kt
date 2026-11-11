@@ -11,6 +11,7 @@ import com.example.ai.data.remote.ApiException
 import com.example.ai.testing.FakeClock
 import com.example.ai.testing.FakeTodoApi
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.awaitCancellation
@@ -478,6 +479,7 @@ class SyncEngineTest {
 
     // ---- state --------------------------------------------------------------------------------
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun stateGoesIdleSyncingIdleOnSuccess() = runTest {
         createTodo("a")
