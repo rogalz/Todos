@@ -126,11 +126,14 @@ Client (virtual time, fakes):
   a signal while idle does not shorten a later backoff.
 - SSE request is not cut by the request timeout (a test with a stream idle longer than the
   request timeout, using heartbeats). A stream that goes silent for longer than the socket
-  timeout is reported as an error.
+  timeout ends (as an error or as a normal-looking close, see the client transport note below;
+  `LiveUpdates` reconnects after either).
 
 Client transport (real OkHttp engine against a scripted raw-socket server, because
 `testApplication` has no sockets):
-- the socket timeout is enforced (a silent stream fails after it); heartbeats keep a stream open
+- the socket timeout is enforced (a silent stream ends after it; whether that shows as an error or
+  as a normal end is a race inside Ktor's SSE session, which swallows a `CancellationException`, so
+  the test does not assert it); heartbeats keep a stream open
   beyond both the socket and the request timeout; cancelling the collector closes the connection;
   unknown events and unreadable data are skipped; a non-2xx answer and a refused connection fail
   the flow; a normal close completes it.

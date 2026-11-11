@@ -15,7 +15,9 @@ interface TodoEvents {
      * with a [ServerEvent.Hello].
      *
      * The flow ends by throwing when the connection fails (nothing listening, a non-2xx answer, a
-     * dead connection) and by completing normally when the server closes the stream. A caller that
+     * dead connection) and by completing normally when the server closes the stream. A dead
+     * connection (silent past the socket timeout) is not reliably told apart from a close: Ktor's
+     * SSE session turns a cancellation into a normal end, so it can arrive either way. A caller that
      * wants to stay connected must treat both as "disconnected" and reconnect; this class never
      * retries.
      */
