@@ -1,0 +1,84 @@
+name: CI
+
+# Branches only (no tags). No pull_request trigger: a push already runs the tests for every PR branch,
+# and with both triggers a same-repo PR would run twice.
+on:
+  push:
+    branches: ["**"]
+
+# One run per ref; a newer push cancels the older in-progress run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      # The server module needs JDK 21 (jvmToolchain(21)).
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          # By default only the default branch writes the cache, so feature-branch pushes would always start cold.
+          cache-read-only: false
+
+      # --continue: one failing test task must not hide failures in the others.
+      # A red test task also means no Kover report (it depends on the tests), which is fine.
+      - name: Test and build coverage reports
+        run: >
+          ./gradlew
+          :api:jvmTest :server:test :shared:jvmTest :shared:testAndroidHostTest
+          koverXmlReport koverHtmlReport
+          --continue
+
+      # Must run on red builds too: the test table is most useful then.
+      - name: Write job summary
+        if: always()
+        run: python3 scripts/ci-summary.py >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: build/reports/kover/html
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-reports
+          path: |
+            api/build/reports/tests
+            api/build/test-results
+            server/build/reports/tests
+            server/build/test-results
+            shared/build/reports/tests
+            shared/build/test-results
+
+  android-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: false
+
+      - run: ./gradlew :androidApp:assembleDebug
