@@ -29,7 +29,8 @@ No authentication, a single shared list. No client changes in this stage.
 @Serializable data class ChangesResponse(
     val items: List<TodoDto>,  // changed since `since`, tombstones included
     val revision: Long,        // cursor for the next pull
-    val reset: Boolean,        // true = `items` is a full snapshot, client should replace its view
+    val serverId: String,      // UUID of this server instance, new on every server start
+    val reset: Boolean,        // true = server was restarted since the client's last pull; `items` is a full snapshot
 )
 ```
 
@@ -38,7 +39,7 @@ No authentication, a single shared list. No client changes in this stage.
 | Method | Path | Behaviour |
 |---|---|---|
 | `GET` | `/health` | 200 OK |
-| `GET` | `/todos?since={revision}` | changes with server revision > `since` (default 0 = everything). |
+| `GET` | `/todos?since={revision}&serverId={uuid}` | changes with server revision > `since` (default 0 = everything). `serverId` = the one the client got in its previous pull (omitted on the very first pull). |
 | `PUT` | `/todos/{id}` | idempotent upsert of a `TodoDto` (create, edit, toggle **and delete** via `deletedAt`). Returns the stored state. |
 
 ### Why delete is a `PUT` with `deletedAt` (not a separate `DELETE`)
@@ -60,15 +61,28 @@ On `PUT`, apply the incoming todo only if there is no stored version or
 Either way respond `200` with the stored (winning) version, so the client can reconcile.
 A no-op write does not bump the revision.
 
-### Server restart
+### Server restart: server instance id
 
-Storage is in-memory (a map guarded by a `Mutex`). After a restart the revision starts again
-from 0. If a client asks for `since` greater than the current revision, return everything
-with `reset = true`. (Pending local changes are pushed by the client anyway, so nothing is lost.)
+Storage is in-memory (a map guarded by a `Mutex`), so a restart loses all todos and the
+revision counter starts again from 0. The client must find out, otherwise todos that exist
+only on clients (already `SYNCED`) would never be pushed again.
+
+- On start the server generates `serverId` (random UUID; injectable for tests) and returns it
+  in every `ChangesResponse`.
+- The client stores `serverId` together with its `revision` cursor and sends both on the
+  next pull.
+- `serverId` omitted (first pull ever): normal response from `since` (usually 0), `reset = false`.
+- `serverId` equal to the current one: normal delta, `reset = false`.
+- `serverId` different: the server ignores `since`, returns everything with `reset = true`.
+
+**Client rule for `reset` (stage 3, do not implement now):** do NOT drop local rows. Mark all
+local rows `PENDING` and re-push them (last-write-wins makes this safe), then store the new
+`serverId` and `revision`. This way clients rebuild the restarted server.
 
 ### Validation
 
-`400` if the path id is not a UUID, path id ≠ body id, or title is blank on a non-tombstone.
+`400` if the path id is not a UUID, path id ≠ body id, title is blank on a non-tombstone, or
+`since` is not a non-negative number.
 
 ## Running
 
@@ -84,7 +98,9 @@ with `reset = true`. (Pending local changes are pushed by the client anyway, so 
 - `PUT` with older `updatedAt` → ignored, response contains the stored newer version.
 - Tombstone `PUT` → appears in changes with `deletedAt`.
 - `GET ?since=X` returns only later changes.
-- `since` > current revision → full snapshot, `reset = true`.
+- Pull without `serverId` → normal response, `reset = false`, contains the current `serverId`.
+- Pull with the current `serverId` → delta, `reset = false`.
+- Pull with a different `serverId` (simulated restart) → full snapshot, `reset = true`, `since` ignored.
 - Validation cases → `400`.
 - JSON round-trip of `TodoDto` / `ChangesResponse` (in `api`).
 

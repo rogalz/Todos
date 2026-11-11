@@ -1,0 +1,4 @@
+# The image needs exactly one file; without this the whole repo (Gradle caches, build dirs) is sent
+# to the Docker daemon as build context.
+*
+!server/build/libs/server.jar
