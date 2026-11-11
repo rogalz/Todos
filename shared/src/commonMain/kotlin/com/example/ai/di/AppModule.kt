@@ -10,16 +10,20 @@ import com.example.ai.ui.list.TodoListViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.core.module.Module
 import org.koin.dsl.module
+import kotlin.time.Clock
 
 /** Provides the platform specific `RoomDatabase.Builder<AppDatabase>`. */
 expect val platformModule: Module
 
 val appModule = module {
-    single<AppDatabase> { getRoomDatabase(get()) }
+    // The only place that names Clock.System; everything else gets the clock injected.
+    single<Clock> { Clock.System }
+    single<AppDatabase> { getRoomDatabase(builder = get(), clock = get()) }
     single<TodoDao> { get<AppDatabase>().todoDao() }
-    single<TodoRepository> { RoomTodoRepository(get()) }
+    single<TodoRepository> { RoomTodoRepository(dao = get(), clock = get()) }
 
     viewModel { TodoListViewModel(get()) }
-    // Parameter is the todo id; `null` (nothing matching Long) means "create a new todo".
-    viewModel { params -> TodoDetailViewModel(todoId = params.getOrNull<Long>(), repository = get()) }
+    // Parameter is the todo id; `null` (nothing matching String) means "create a new todo". The type
+    // argument must stay in sync with the id type: a mismatch compiles but silently reads as `null`.
+    viewModel { params -> TodoDetailViewModel(todoId = params.getOrNull<String>(), repository = get()) }
 }

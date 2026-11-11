@@ -10,10 +10,10 @@ import kotlinx.coroutines.flow.flow
 class FakeTodoRepository(initial: List<Todo> = emptyList()) : TodoRepository {
 
     data class Created(val title: String, val description: String)
-    data class Updated(val id: Long, val title: String, val description: String)
+    data class Updated(val id: String, val title: String, val description: String)
 
     val todos = MutableStateFlow(initial)
-    private var nextId = (initial.maxOfOrNull { it.id } ?: 0L) + 1
+    private var nextId = 1
 
     var failReads = false
     var failWrites = false
@@ -23,29 +23,30 @@ class FakeTodoRepository(initial: List<Todo> = emptyList()) : TodoRepository {
 
     val created = mutableListOf<Created>()
     val updated = mutableListOf<Updated>()
-    val doneChanges = mutableListOf<Pair<Long, Boolean>>()
-    val deleted = mutableListOf<Long>()
+    val doneChanges = mutableListOf<Pair<String, Boolean>>()
+    val deleted = mutableListOf<String>()
 
     val writeCount: Int get() = created.size + updated.size + doneChanges.size + deleted.size
 
     override fun observeTodos(): Flow<List<Todo>> =
         if (failReads) flow { throw IllegalStateException("read failed") } else todos
 
-    override suspend fun getTodo(id: Long): Todo? {
+    override suspend fun getTodo(id: String): Todo? {
         getTodoGate?.await()
         if (failReads) throw IllegalStateException("read failed")
         return todos.value.firstOrNull { it.id == id }
     }
 
-    override suspend fun createTodo(title: String, description: String): Long {
+    override suspend fun createTodo(title: String, description: String): String {
         failIfRequested()
-        val id = nextId++
+        // Prefixed so generated ids can never collide with ids seeded through the constructor.
+        val id = "generated-${nextId++}"
         created += Created(title, description)
         todos.value = listOf(Todo(id, title, description, isDone = false)) + todos.value
         return id
     }
 
-    override suspend fun updateTodo(id: Long, title: String, description: String) {
+    override suspend fun updateTodo(id: String, title: String, description: String) {
         failIfRequested()
         updated += Updated(id, title, description)
         todos.value = todos.value.map {
@@ -54,13 +55,13 @@ class FakeTodoRepository(initial: List<Todo> = emptyList()) : TodoRepository {
         }
     }
 
-    override suspend fun setDone(id: Long, isDone: Boolean) {
+    override suspend fun setDone(id: String, isDone: Boolean) {
         failIfRequested()
         doneChanges += id to isDone
         todos.value = todos.value.map { if (it.id == id) it.copy(isDone = isDone) else it }
     }
 
-    override suspend fun deleteTodo(id: Long) {
+    override suspend fun deleteTodo(id: String) {
         failIfRequested()
         deleted += id
         todos.value = todos.value.filterNot { it.id == id }

@@ -76,6 +76,10 @@ kotlin {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutinesTest)
         }
+        jvmTest.dependencies {
+            // MigrationTestHelper, used to replay the exported schemas in shared/schemas.
+            implementation(libs.androidx.room.testing)
+        }
         getByName("androidDeviceTest").dependencies {
             implementation(libs.androidx.testRunner)
         }

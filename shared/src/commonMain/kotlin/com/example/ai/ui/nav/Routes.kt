@@ -7,4 +7,4 @@ data object TodoListRoute
 
 /** @property todoId id of the todo to edit, `null` opens the screen in "new todo" mode. */
 @Serializable
-data class TodoDetailRoute(val todoId: Long? = null)
+data class TodoDetailRoute(val todoId: String? = null)

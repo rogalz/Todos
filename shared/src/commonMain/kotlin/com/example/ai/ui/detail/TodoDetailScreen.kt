@@ -64,7 +64,7 @@ import org.koin.core.parameter.parametersOf
  */
 @Composable
 fun TodoDetailScreen(
-    todoId: Long?,
+    todoId: String?,
     onClose: () -> Unit,
     viewModel: TodoDetailViewModel = koinViewModel(parameters = { parametersOf(todoId) }),
 ) {
