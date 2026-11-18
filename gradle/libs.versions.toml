@@ -17,7 +17,7 @@ kotlin = "2.4.21"
 kotlinx-coroutines = "1.11.0"
 # Calendar math for the "Edited ..." footer (kotlin.time.Instant has no time zones or dates).
 kotlinx-datetime = "0.8.0"
-material3 = "1.12.0-alpha03"
+material3 = "1.13.0-beta02"
 # Last published KMP release (Dec 2024); the icon glyphs are static, so a frozen version is fine.
 materialIcons = "1.7.3"
 room = "2.8.5"
